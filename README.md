@@ -13,10 +13,11 @@
 |---|---|
 | Planner (stages 1–2) | `openai/gpt-oss-120b` |
 | Builder (stages 3–4) | `openai/gpt-oss-120b` |
-| LLM judge (stage 1 check) | `qwen/qwen3-32b` |
-| Reviewer (stage 6) | `llama-3.3-70b-versatile` |
+| LLM judge (stage 1 check) | `qwen/qwen3.8-27b` |
+| Reviewer (stage 6) | `qwen/qwen3.8-27b` |
+| Injection screen | `meta-llama/llama-prompt-guard-2-86m` |
 
-Each model is set by a repository variable (see ADR-006).
+Each model is set by a repository variable (see ADR-011, which supersedes ADR-006).
 
 ## How to trigger
 On an issue in the fork, a collaborator either:
@@ -26,7 +27,7 @@ On an issue in the fork, a collaborator either:
 ## Layout
 ```
 architecture/views/      component view, sequence view, stage map
-architecture/decisions/  ADR-001 … ADR-010
+architecture/decisions/  ADR-001 … ADR-011 (ADR-006 superseded)
 workflow/                copy of the fork's .github/workflows + autose/ agent code
 experiment/              issues, hidden tests, seeded PRs, variants.md
 results/                 results.csv, runs.md

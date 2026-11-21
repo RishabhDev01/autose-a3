@@ -16,11 +16,11 @@ sequenceDiagram
   participant WF as build job
   participant O as Orchestrator (code)
   participant P as Planner (gpt-oss-120b)
-  participant J as Judge (qwen3-32b)
+  participant J as Judge (qwen3.8-27b)
   participant B as Builder (gpt-oss-120b)
   participant CI as CI (pytest)
   participant RJ as review job (read-only)
-  participant R as Reviewer (llama-3.3-70b)
+  participant R as Reviewer (qwen3.8-27b)
   participant PJ as post job
 
   M->>GH: adds label "autose" to issue #3

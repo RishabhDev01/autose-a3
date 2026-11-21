@@ -27,7 +27,7 @@ flowchart LR
   end
 
   subgraph JOB2["Job: review  (contents:read, pull-requests:read)"]
-    REV[Reviewer agent<br/>stage 6<br/>model: REVIEWER_MODEL<br/>different family]
+    REV[Reviewer agent<br/>stage 6<br/>model: REVIEWER_MODEL<br/>qwen, a different family]
   end
 
   subgraph JOB3["Job: post  (pull-requests:write, no LLM)"]
