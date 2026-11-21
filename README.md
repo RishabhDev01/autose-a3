@@ -4,8 +4,9 @@
 
 ## Fork
 - Upstream: https://github.com/msiemens/tinydb
-- Fork: `TODO: https://github.com/<user>/tinydb`
-- Pinned commit: `edff96a`
+- Fork: https://github.com/RishabhDev01/tinydb
+- Pinned commit: `edff96aeb2616402e9489d46e90a592c05565621` (`edff96a`)
+- Branch protection on `master`: PR required, no bypass, no force push, no deletion
 
 ## Models (all on the Groq free tier)
 | Role | Model |
