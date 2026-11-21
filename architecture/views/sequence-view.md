@@ -1,101 +1,102 @@
-# Sequence view: one run, from trigger to review
+# Sequence view: what one run looks like, from trigger to review
 
-> **Status: PLANNED.** The diagram below shows the designed message flow. Every `⟨…⟩` placeholder will be filled in from **one real run** after it happens: the run URL, PR number, timestamps, attempts and tokens. Values are copied from that run's `state.json` and its Actions log. Nothing here will be invented.
+This walk-through follows one issue through the whole workflow, message by message. It shows the concrete inputs and outputs at every hop, including a test retry and one review round that sends work back. Links to actual Actions runs are listed in `results/runs.md`.
 
-## Run record (filled in from the real run)
+**Example issue: #3 "Feature: get a list of one field from all documents"**
 
-| Field | Value |
-|---|---|
-| Issue | ⟨#N title⟩ |
-| Trigger | ⟨label `autose` / comment `/autose`⟩ by ⟨user⟩ at ⟨time⟩ |
-| Build job run | ⟨https://github.com/…/actions/runs/…⟩ |
-| Review job run | ⟨url⟩ |
-| PR | ⟨#M url⟩ |
-| Implement/test attempts | ⟨n⟩ |
-| Review rounds | ⟨n⟩, final verdict ⟨approve / changes⟩ |
-| Tokens (planner / judge / builder / reviewer) | ⟨…⟩ |
-| Wall-clock time | ⟨mm:ss⟩ |
-
-## Diagram
+> I often need just the `name` of every document. Right now I write
+> `[d['name'] for d in db.all()]`, which breaks when some docs have no `name`.
+> Could tinydb have something like `db.pluck('name')`?
 
 ```mermaid
 sequenceDiagram
   autonumber
   actor M as Maintainer
-  participant GH as GitHub (issue / PR)
-  participant WF as Actions: build job
+  participant GH as GitHub
+  participant WF as build job
   participant O as Orchestrator (code)
-  participant P as Planner agent
-  participant J as LLM judge
-  participant B as Builder agent
-  participant G as Groq API
+  participant P as Planner (gpt-oss-120b)
+  participant J as Judge (qwen3-32b)
+  participant B as Builder (gpt-oss-120b)
   participant CI as CI (pytest)
-  participant RJ as Actions: review job
-  participant R as Reviewer agent
-  participant PJ as Actions: post job
+  participant RJ as review job (read-only)
+  participant R as Reviewer (llama-3.3-70b)
+  participant PJ as post job
 
-  M->>GH: add label "autose" (or comment /autose)
-  GH->>WF: issues.labeled event
-  WF->>WF: gate: author_association ∈ {OWNER, MEMBER, COLLABORATOR}
-  WF->>O: start(issue N) and read state.json if present
-  Note over O: concurrency group autose-issue-N
+  M->>GH: adds label "autose" to issue #3
+  GH->>WF: event issues.labeled
+  WF->>WF: gate: author_association = OWNER ✔
+  WF->>O: run(issue=3), no state.json, so start at SPEC
 
-  rect rgba(120,160,255,0.12)
-  Note over O,P: Stage 1: Requirements
-  O->>P: <untrusted_issue> + A1 spec-writer skill
-  P->>G: chat + tools (read_file, grep)
-  P-->>O: spec.md
-  O->>O: regex: AC-n has Given/When/Then
-  O->>J: each AC: testable?
-  J->>G: single completion (different model)
-  J-->>O: {AC-1: yes, …}
-  end
+  Note over O,J: Stage 1: Requirements
+  O->>P: <untrusted_issue>#3 text</untrusted_issue> + spec-writer skill
+  P->>P: read_file(README.md), grep("def all")
+  P-->>O: spec.md (AC-1 list of values, AC-2 skip docs without field,<br/>AC-3 "should be fast")
+  O->>O: regex check ✔ (3 ACs, Given/When/Then present)
+  O->>J: is each AC testable?
+  J-->>O: AC-1 yes, AC-2 yes, AC-3 NO ("fast" has no threshold)
+  O->>P: redo 1/1: AC-3 not testable
+  P-->>O: spec.md v2 (AC-3: empty table returns [])
+  O->>J: re-check
+  J-->>O: all yes ✔. Stage 1 PASS
 
-  rect rgba(120,160,255,0.12)
   Note over O,P: Stage 2: Design
   O->>P: spec.md + ARCHITECTURE.md
-  P-->>O: design.md
-  O->>O: script: named files and functions exist
-  end
+  P-->>O: design.md: tinydb/table.py → Table.pluck (NEW),<br/>tinydb/database.py → forwarded via __getattr__,<br/>tests/test_tables.py → new tests
+  O->>O: files exist ✔, Table class found by grep ✔. Stage 2 PASS
 
-  rect rgba(120,220,160,0.12)
-  Note over O,B: Stages 3–4: Implement ⇄ Test (≤3 attempts)
-  O->>B: spec.md + design.md + target files
-  loop until pytest passes or 3 attempts
-    B->>G: chat + tools (read, write_file, run_tests)
-    B-->>O: claims done
-    O->>O: compileall + full pytest + AC-n mapped to tests
-    alt tests fail
-      O->>B: truncated failure log
-    end
-  end
-  O->>O: save diff.patch, test_report.md, commit .autose/issue-N/
-  end
+  Note over O,B: Stages 3–4: Implement ⇄ Test
+  O->>B: spec.md + design.md + table.py
+  B->>B: write_file(table.py), write_file(test_tables.py), run_tests
+  B-->>O: done (attempt 1)
+  O->>O: compileall ✔, pytest ✘ test_pluck_missing_field: KeyError
+  O->>B: attempt 2/3 + failure log (truncated)
+  B->>B: fix: skip docs where field not in doc
+  B-->>O: done (attempt 2)
+  O->>O: compileall ✔, full pytest ✔, AC-1/2/3 each have a test ✔
+  O->>O: write diff.patch, test_report.md, commit .autose/issue-3/
 
-  rect rgba(255,200,120,0.12)
   Note over O,CI: Stage 5: Release (no LLM)
-  O->>GH: git push autose/issue-N, gh pr create (pr.md)
+  O->>GH: git push autose/issue-3, gh pr create, opens PR #6 (body = pr.md)
   GH->>CI: pull_request event
-  CI-->>O: gh pr checks --watch → green
-  end
+  CI-->>O: gh pr checks: all green ✔. Stage 5 PASS
 
-  WF->>RJ: needs: build (outputs: PR number, head SHA)
+  WF->>RJ: needs: build (pr=6, sha=abc123)
 
-  rect rgba(255,140,140,0.12)
-  Note over RJ,R: Stage 6: Independent review (read-only token, fresh runner)
-  RJ->>RJ: checkout PR head SHA
-  RJ->>R: issue text + diff (excluding .autose/)
-  R->>G: chat + tools (read_file, grep, run_tests)
-  R-->>RJ: review.md + verdict.json
-  end
+  Note over RJ,R: Stage 6: Review round 1 (fresh runner, sees issue + diff + repo only)
+  RJ->>R: issue #3 text + diff (without .autose/)
+  R->>R: read_file(table.py), run_tests ✔
+  R->>R: tries edge case: nested field "a.b", not handled
+  R-->>RJ: verdict changes, target implement,<br/>finding "issue says 'one field'; nested keys silently return nothing"
+  RJ->>PJ: verdict.json
+  PJ->>GH: comments review-r1.md on PR #6
+  PJ->>WF: workflow_dispatch(issue=3, round=2, start=implement)
 
-  RJ->>PJ: verdict
-  PJ->>GH: gh pr comment review.md
-  alt verdict = changes and round < 2
-    PJ->>WF: workflow_dispatch(issue N, round+1, start=design|implement)
-  else approve or 2 rounds used
-    PJ->>GH: comment "ready for human decision"
-    GH-->>M: notification
-    M->>GH: merge or close (human only)
-  end
+  Note over O,B: Round 2: back to stage 3, resumes from state.json
+  O->>B: spec + design + review finding
+  B-->>O: raise a clear ValueError for dotted keys + test
+  O->>O: pytest ✔, push to PR #6, CI ✔
+
+  Note over RJ,R: Stage 6: Review round 2
+  RJ->>R: issue + new diff
+  R-->>RJ: verdict approve, findings: none blocking
+  RJ->>PJ: verdict.json
+  PJ->>GH: comments review-r2.md + "Ready for human decision"
+  GH-->>M: notification
+  M->>GH: reviews PR #6 and merges or closes (human only)
 ```
+
+## The same run as a timeline
+
+| Step | Stage | Who | Output on GitHub | Check result |
+|---|---|---|---|---|
+| 1 | Trigger | Maintainer | label `autose` on issue #3 | gate ✔ |
+| 2 | Requirements | Planner + Judge | `.autose/issue-3/spec.md` | 1 redo (AC-3 untestable), then ✔ |
+| 3 | Design | Planner | `design.md` | files and functions exist ✔ |
+| 4 | Implement | Builder | `diff.patch` | builds ✔ |
+| 5 | Test | Builder | `test_report.md` | attempt 1 ✘, attempt 2 ✔ |
+| 6 | Release | Script | PR #6 + `pr.md` | CI green ✔ |
+| 7 | Review r1 | Reviewer | PR comment `review-r1.md` | changes → implement |
+| 8 | Implement/Test r2 | Builder | new commit on PR #6 | pytest ✔, CI ✔ |
+| 9 | Review r2 | Reviewer | PR comment `review-r2.md` | approve |
+| 10 | Decision | Human | merge or close | — |
