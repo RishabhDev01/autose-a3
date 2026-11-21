@@ -20,6 +20,7 @@ Fork: https://github.com/RishabhDev01/tinydb (base `edff96a`)
 | [#2](https://github.com/RishabhDev01/tinydb/pull/2) | AutoSE agents, orchestrator, workflow |
 | [#8](https://github.com/RishabhDev01/tinydb/pull/8) | Fit requests to the Groq 8k-TPM limit (ADR-013), after run #2 below |
 | [#9](https://github.com/RishabhDev01/tinydb/pull/9) | Resample on `output_parse_failed`, after run #9 below |
+| [#10](https://github.com/RishabhDev01/tinydb/pull/10) | Tolerant builder tools, `replace_lines` (ADR-014), after run #10 below |
 
 ## AutoSE runs
 
@@ -30,3 +31,4 @@ Fork: https://github.com/RishabhDev01/tinydb (base `edff96a`)
 | 3–8 | AutoSE #3–#8 | labels `bug`/`enhancement`/`question` | #3–#7 | skipped | type labels do not trigger runs (ADR-010) |
 | 9 | [44938351640](https://github.com/RishabhDev01/tinydb/actions/runs/44938351640) | comment `/autose` | #3 | **stopped at spec** | 413 is gone (first call 1,692 tokens). New failure: HTTP 400 `output_parse_failed`, because gpt-oss emitted its reasoning ("We need spec. Identify behavior…") instead of a tool call. The retry code only handled `tool_use_failed`. Fix: resample on both, and drop the reasoning setting after 2 failures (fork [PR #9](https://github.com/RishabhDev01/tinydb/pull/9)) |
 | 10 | [44939124496](https://github.com/RishabhDev01/tinydb/actions/runs/44939124496) | comment `/autose` | #3 | **stopped at implement** (19m27s) | guard ✔; **spec ✔** (4 ACs, judge passed on 1st attempt); **design ✔** (`Table.update` + tests). Builder used 40/40 turns with **0 edits applied**: 13 × `read_file(line_start/line_end)` rejected as "bad arguments", 9 × `edit_file` "not found" (indentation mismatch), the rest re-reading. The `output_parse_failed` resample fired and recovered. Tokens: planner 22.5k, judge 0.9k, builder 165k. Led to **ADR-014** (tolerant tools, `replace_lines`) |
+| 11 | [44942070537](https://github.com/RishabhDev01/tinydb/actions/runs/44942070537) | comment `/autose` | #3 | **cancelled in implement** (2h30m job timeout) | guard ✔ (0.001); **spec ✔** (4 ACs, judge passed on 1st attempt, under 1 min); **design ✔** (3 rows) but took 87 min. Every gpt-oss-120b call got a 429 with `retry-after` of 423–1659 s, which means its **daily token quota** was spent (runs 9–10 used about 190k). The builder made 3 read-only turns in 80 min. The new tools were not exercised. Led to **ADR-015** (fallback to gpt-oss-20b or stop fast) |
