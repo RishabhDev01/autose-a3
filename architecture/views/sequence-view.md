@@ -67,7 +67,7 @@ sequenceDiagram
   RJ->>R: issue #3 text + diff (without .autose/)
   R->>R: read_file(table.py), run_tests ✔
   R->>R: tries edge case: nested field "a.b", not handled
-  R-->>RJ: verdict changes, target implement,<br/>finding "issue says 'one field'; nested keys silently return nothing"
+  R-->>RJ: verdict changes, target implement,<br/>finding "issue says 'one field', but nested keys silently return nothing"
   RJ->>PJ: verdict.json
   PJ->>GH: comments review-r1.md on PR #6
   PJ->>WF: workflow_dispatch(issue=3, round=2, start=implement)
