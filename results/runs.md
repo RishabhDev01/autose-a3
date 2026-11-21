@@ -21,6 +21,7 @@ Fork: https://github.com/RishabhDev01/tinydb (base `edff96a`)
 | [#8](https://github.com/RishabhDev01/tinydb/pull/8) | Fit requests to the Groq 8k-TPM limit (ADR-013), after run #2 below |
 | [#9](https://github.com/RishabhDev01/tinydb/pull/9) | Resample on `output_parse_failed`, after run #9 below |
 | [#10](https://github.com/RishabhDev01/tinydb/pull/10) | Tolerant builder tools, `replace_lines` (ADR-014), after run #10 below |
+| [#11](https://github.com/RishabhDev01/tinydb/pull/11) | Daily-quota fallback to gpt-oss-20b or stop fast (ADR-015), after run #11 below |
 
 ## AutoSE runs
 
