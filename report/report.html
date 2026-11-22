@@ -98,6 +98,15 @@ flowchart LR
 <tr><td>6</td><td>Review</td><td>reviewer (Gemini 4 Hydrogen), separate job</td><td><code>review.md</code></td><td>valid verdict; tests were run; risks listed</td><td>maintainer may start round 2</td></tr>
 </table>
 <div class="cap" style="margin-top:-2pt">Table 1. Stage map. The reviewer receives only the issue, the diff and the repository. It never sees the specification, the design or another agent's conversation (ADR-008).</div>
+<h3>How the reviewer is kept from simply agreeing with the implementer</h3>
+<p>We use five measures (ADR-008, ADR-021, ADR-026).
+(1) It runs in a separate job on a fresh checkout of the pull request, with a read-only token: it can read the code and run the tests, but it cannot push or comment.
+(2) It receives only the issue and the diff. The <code>.autose/</code> folder (specification, design, test report) is deleted before it starts, and its tools refuse to read <code>.autose/</code>, <code>autose/</code> and <code>.github/</code>, so it never sees the implementer's reasoning or our own prompts.
+(3) It uses its own prompt and a different model series from the builder (Gemini 4 Hydrogen against Gemini 3.8 Flash).
+(4) Code checks its verdict: the reviewer must have run the full test suite, must list each requirement with evidence and at least two risks, and an approval that still lists an unmet requirement or a defect is rejected. A verdict that fails these checks three times is recorded as "changes", never as an approval.
+(5) We measured it: on five seeded pull requests whose tests all pass, it rejected all four buggy ones and approved the correct one, and it also rejected the builder's gamed PR 26 that every automatic check had passed (Section 4).
+Requested changes name the stage to return to (design or implementation); the post job then offers <code>/autose round 2 &lt;stage&gt;</code>, at most two rounds, and a person decides whether to start it.</p>
+
 
 <div class="fig"><div class="mermaid">
 sequenceDiagram
@@ -126,17 +135,17 @@ sequenceDiagram
 <h2 class="pb">2. Design decisions</h2>
 <table class="small">
 <tr><th>ADR</th><th>Decision</th><th>Option chosen</th><th>Main option rejected</th><th>Main reason</th><th>Status</th></tr>
-<tr><td>001</td><td>How work is split</td><td>three agents and plain code</td><td>one agent per stage</td><td>fewer cold starts</td><td>Accepted</td></tr>
-<tr><td>002</td><td>Control flow</td><td>Python state machine</td><td>LLM orchestrator</td><td>predictable and auditable</td><td>Accepted</td></tr>
-<tr><td>003</td><td>Hand-offs</td><td>full spec and design files</td><td>short summaries</td><td>exact criteria wording; confirmed by E2</td><td>Accepted</td></tr>
-<tr><td>004</td><td>Where state lives</td><td>files on the issue branch</td><td>Actions cache</td><td>durable and visible in the PR</td><td>Amended</td></tr>
-<tr><td>005</td><td>Agent runtime</td><td>own tool loop with allow-lists</td><td>mini-swe-agent</td><td>permissions enforced in code</td><td>Amended (016)</td></tr>
-<tr><td>006</td><td>Models, first version</td><td>Groq, reviewer of another family</td><td>one model everywhere</td><td>independence</td><td>Superseded (011)</td></tr>
-<tr><td>007</td><td>Checks</td><td>code checks; LLM judge only for testability</td><td>LLM judge for all</td><td>cheaper and less noisy</td><td>Amended (026)</td></tr>
-<tr><td>008</td><td>Reviewer isolation</td><td>own job, model, prompt and inputs</td><td>reviewer inside build job</td><td>no shared context; tested by E1</td><td>Accepted</td></tr>
-<tr><td>009</td><td>Budgets, untrusted input</td><td>hard limits; issue text treated as data</td><td>trusting issue text</td><td>cost and injection safety</td><td>Amended</td></tr>
-<tr><td>010</td><td>Triggers</td><td>label or <code>/autose</code> from collaborators</td><td>label only</td><td>re-runnable, trusted users only</td><td>Accepted</td></tr>
-<tr><td>011</td><td>Models, second version</td><td>models the Groq key allows; prompt guard</td><td>gpt-oss-20b as reviewer</td><td>same family as the builder</td><td>Amended (019)</td></tr>
+<tr><td>001</td><td>D1 Splitting the work</td><td>three agents and plain code</td><td>one agent per stage</td><td>fewer cold starts</td><td>Accepted</td></tr>
+<tr><td>002</td><td>D2 Control flow</td><td>Python state machine</td><td>LLM orchestrator</td><td>predictable and auditable</td><td>Accepted</td></tr>
+<tr><td>003</td><td>D3 Hand-offs</td><td>full spec and design files</td><td>short summaries</td><td>exact criteria wording; confirmed by E2</td><td>Accepted</td></tr>
+<tr><td>004</td><td>D4 State</td><td>files on the issue branch</td><td>Actions cache</td><td>durable and visible in the PR</td><td>Amended</td></tr>
+<tr><td>005</td><td>D5 Tools</td><td>own tool loop with allow-lists</td><td>mini-swe-agent</td><td>permissions enforced in code</td><td>Amended (016)</td></tr>
+<tr><td>006</td><td>D6 Models, first version</td><td>Groq, reviewer of another family</td><td>one model everywhere</td><td>independence</td><td>Superseded (011)</td></tr>
+<tr><td>007</td><td>D7 Checks</td><td>code checks; LLM judge only for testability</td><td>LLM judge for all</td><td>cheaper and less noisy</td><td>Amended (026)</td></tr>
+<tr><td>008</td><td>D8 Reviewer independence</td><td>own job, model, prompt and inputs</td><td>reviewer inside build job</td><td>no shared context; tested by E1</td><td>Accepted</td></tr>
+<tr><td>009</td><td>D9 Budgets, untrusted input</td><td>hard limits; issue text treated as data</td><td>trusting issue text</td><td>cost and injection safety</td><td>Amended</td></tr>
+<tr><td>010</td><td>D10 Triggers</td><td>label or <code>/autose</code> from collaborators</td><td>label only</td><td>re-runnable, trusted users only</td><td>Accepted</td></tr>
+<tr><td>011</td><td>D6 Models, second version</td><td>models the Groq key allows; prompt guard</td><td>gpt-oss-20b as reviewer</td><td>same family as the builder</td><td>Amended (019)</td></tr>
 <tr><td>012</td><td>CI</td><td>small pytest CI started by the release step</td><td>personal access token</td><td>no long-lived secret</td><td>Accepted</td></tr>
 <tr><td>013</td><td>Request size</td><td>every request under 8k tokens/min</td><td>paid tier at the time</td><td>free-key constraint</td><td>Accepted</td></tr>
 <tr><td>014</td><td>Tool robustness</td><td>tools accept the model's argument shapes</td><td>more turns</td><td>run 10 made no edits</td><td>Replaced in practice (016)</td></tr>
@@ -144,9 +153,9 @@ sequenceDiagram
 <tr><td>016</td><td>Builder design</td><td>select code, one-shot patch, validate</td><td>tool loop with more turns</td><td>runs 10 and 12 looped</td><td>Accepted</td></tr>
 <tr><td>017</td><td>Prompt source</td><td>prompts read from master</td><td>recreate branch each run</td><td>run 13 used old prompts</td><td>Accepted</td></tr>
 <tr><td>018</td><td>Quota resume</td><td>scheduled automatic resume</td><td>none</td><td>every run must be started by a person</td><td>Rejected</td></tr>
-<tr><td>019</td><td>Provider</td><td>planner and builder on paid Gemini</td><td>waiting for Groq refill</td><td>throughput</td><td>Accepted</td></tr>
+<tr><td>019</td><td>D6 Provider</td><td>planner and builder on paid Gemini</td><td>waiting for Groq refill</td><td>throughput</td><td>Accepted</td></tr>
 <tr><td>020</td><td>Turn budget</td><td>stated budget, forced finish</td><td>more turns</td><td>run 16 never finished</td><td>Accepted</td></tr>
-<tr><td>021</td><td>Reviewer model</td><td>Gemini 4 Hydrogen</td><td>builder's model</td><td>speed; independence</td><td>Accepted</td></tr>
+<tr><td>021</td><td>D6/D8 Reviewer model</td><td>Gemini 4 Hydrogen</td><td>builder's model</td><td>speed; independence</td><td>Accepted</td></tr>
 <tr><td>022</td><td>Planner budget</td><td>400k tokens, set by variable</td><td>budget per stage</td><td>run 20 ran out</td><td>Accepted</td></tr>
 <tr><td>023</td><td>Builder output limit</td><td>12k tokens; cut-offs reported</td><td>reasoning disabled</td><td>run 21 answers were cut off</td><td>Accepted</td></tr>
 <tr><td>024</td><td>Builder feedback</td><td>failing tests with errors; helper code shown</td><td>full pytest output</td><td>run 22 could not see the cause</td><td>Accepted</td></tr>
@@ -157,6 +166,7 @@ sequenceDiagram
 <tr><td>029</td><td>Re-trigger after release</td><td>label or comment starts a fresh run</td><td>commit final status after CI</td><td>run 29 resumed at release</td><td>Accepted</td></tr>
 </table>
 
+<div class="cap" style="margin-top:-2pt">Table 2. All ADRs. D1 to D10 are the ten decisions listed in the assignment; all ten are covered (ADR-001 to ADR-010, refined by later ADRs). ADR-011 to ADR-029 record what the runs taught us.</div>
 <h3>Decision 1: the builder edits code chosen for it (ADR-016)</h3>
 <p>Our first builder was an agent with file tools. In run 10 it used all 40 turns without applying a single edit: thirteen file reads had bad arguments and nine edits did not match the file. Run 12 repeated the pattern and used 179k tokens.
 We changed the design so that the orchestrator finds the relevant definitions with Python's <code>ast</code> module and sends them, with their helper functions and the project's invariants, in one request.
@@ -339,7 +349,7 @@ We also learned to check results with the same Python version as CI. Our first l
 <li><b>Small samples.</b> There are five issues, six pull requests in E1 and two runs per cell in E2. Each pipeline issue reached success once and was not repeated, although model outputs vary (in E2, issue 5 passed in three of four runs).</li>
 <li><b>Our own ground truth.</b> The hidden tests encode one reading of the vague issue. The seeded bugs are single bugs visible in the diff, written by the same team that built the reviewer, so harder bugs spread over several files were not tested.</li>
 <li><b>Limited independence.</b> The reviewer and the builder are both Gemini models, although from different series. E1 found equal accuracy, but models from one vendor may share blind spots that our tests did not reveal.</li>
-<li><b>Incomplete measurement.</b> Token totals are missing for three runs that stopped before reporting. The prompt-injection guard was never tested against a real attack.</li>
+<li><b>Incomplete measurement.</b> Token totals are missing for three runs that stopped before reporting. The prompt-injection guard was never tested against a real attack. Review round 2 (returning requested changes to an earlier stage) is implemented and was triggered once (run 28), but that run was blocked by the gate, so no completed round 2 exists.</li>
 </ul>
 <p style="font-size:8.6pt">The workflow pushes and comments only in our fork and never merges. API keys are kept in repository secrets. A spending limit was set before paid use. All runs, pull requests and reviews are real and linked in <code>results/runs.md</code>.</p>
 

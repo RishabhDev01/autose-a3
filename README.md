@@ -34,6 +34,11 @@ Two further workflows, also started by hand, were used for the evaluation:
 - **AutoSE review only** runs the reviewer on any pull request. It was used for the seeded PRs and experiment E1.
 - **AutoSE experiment E2** runs the builder alone, with the full or summarised hand-off.
 
+## Decisions D1–D10 from the assignment
+| D1 Splitting the work | D2 Control flow | D3 Hand-offs | D4 State | D5 Tools | D6 Models | D7 Checks | D8 Reviewer independence | D9 Safety and failures | D10 Triggers |
+|---|---|---|---|---|---|---|---|---|---|
+| ADR-001 | ADR-002 | ADR-003, 028 | ADR-004, 017, 029 | ADR-005, 014, 016, 025 | ADR-006 (superseded), 011, 019, 021 | ADR-007, 024, 026 | ADR-008, 021, 027 | ADR-009, 013, 015, 020, 022, 023, 026 | ADR-010, 026, 029 |
+
 ## Layout
 ```
 report.pdf               the report (source: report/report.html)
