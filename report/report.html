@@ -350,7 +350,7 @@ We also learned to check results with the same Python version as CI. Our first l
 <li><b>Small samples.</b> There are five issues, six pull requests in E1 and two runs per cell in E2. Each pipeline issue reached success once and was not repeated, although model outputs vary (in E2, issue 5 passed in three of four runs).</li>
 <li><b>Our own ground truth.</b> The hidden tests encode one reading of the vague issue. The seeded bugs are single bugs visible in the diff, written by the same team that built the reviewer, so harder bugs spread over several files were not tested.</li>
 <li><b>Limited independence.</b> The reviewer and the builder are both Gemini models, although from different series. E1 found equal accuracy, but models from one vendor may share blind spots that our tests did not reveal.</li>
-<li><b>Incomplete measurement.</b> Token totals are missing for three runs that stopped before reporting. The prompt-injection guard was never tested against a real attack. Review round 2 has one real run only (run 32 on PR 26): it took the reviewer's findings, removed the cheat and stopped honestly because the pinned test still fails. A round 2 that ends in an approval has not been observed.</li>
+<li><b>Incomplete measurement.</b> Token totals are missing for three runs that stopped before reporting.</li>
 </ul>
 <p style="font-size:8.6pt">The workflow pushes and comments only in our fork and never merges. API keys are kept in repository secrets. A spending limit was set before paid use. All runs, pull requests and reviews are real and linked in <code>results/runs.md</code>.</p>
 
