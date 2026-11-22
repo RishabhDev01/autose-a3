@@ -57,7 +57,7 @@ results/seeded_reviews.csv, results/e2_handoff.csv   per-run data for the experi
 ```
 
 ## Demo video
-[`demo.mp4`](demo.mp4) (3 min 8 s, narrated). Direct link: https://github.com/RishabhDev01/autose-a3/blob/main/demo.mp4
-Backup link (Google Drive): https://drive.google.com/file/d/1bTlspmt7U8KSJB5e7vj05uGFJsFw81Om/view?usp=sharing
+- Video: [`demo.mp4`](demo.mp4) (3 min 8 s, narrated), https://github.com/RishabhDev01/autose-a3/blob/main/demo.mp4
+- Backup (Google Drive): https://drive.google.com/file/d/1bTlspmt7U8KSJB5e7vj05uGFJsFw81Om/view?usp=sharing
 
 It shows one complete real run on issue #5: the issue page, the `autose` label, the run log, pull request #23 and the independent review posted on it. It also shows the comment trigger on issue #6, three design decisions (patch-mode builder, the test-gaming check added after PR #26, designing around rate limits) and the evaluation results.
