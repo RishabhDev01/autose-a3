@@ -1,37 +1,54 @@
-# A3 — AutoSE: Issue In, Pull Request Out
+# A3: AutoSE, Issue In, Pull Request Out
 
-> Status: design phase. The ADRs and component view were committed before any agent code.
+A GitHub Actions workflow on a fork of TinyDB. It takes an issue through requirements, design, implementation, testing and release, then has an independent reviewer check the pull request. A person always makes the merge decision. The report is in [`report.pdf`](report.pdf).
 
 ## Fork
 - Upstream: https://github.com/msiemens/tinydb
 - Fork: https://github.com/RishabhDev01/tinydb
-- Pinned commit: `edff96aeb2616402e9489d46e90a592c05565621` (`edff96a`)
+- Base commit: `edff96aeb2616402e9489d46e90a592c05565621` (`edff96a`)
+- Workflow code at the end of the project: fork `master` at `7cc4505` (after PR #34)
 - Branch protection on `master`: PR required, no bypass, no force push, no deletion
 
 ## Models
 | Role | Model | Provider |
 |---|---|---|
-| Planner (stages 1–2) | `gemini-3.8-flash` (fallback: `openai/gpt-oss-120b`, then `openai/gpt-oss-20b`) | Google Gemini API, paid Tier 1 (fallback: Groq free) |
-| Builder (stages 3–4) | `gemini-3.8-flash` (same fallback) | Google Gemini API, paid Tier 1 (fallback: Groq free) |
-| LLM judge (stage 1 check) | `qwen/qwen3.8-27b` | Groq free tier |
-| Reviewer (stage 6) | `gemini-4-hydrogen` (fallback: `qwen/qwen3.8-27b`) | Google Gemini API, paid Tier 1; a different series from the builder (ADR-021) |
+| Planner (stages 1–2) | `gemini-3.8-flash` (fallback `openai/gpt-oss-120b`, then `openai/gpt-oss-20b`) | Google Gemini API, paid Tier 1 (fallback: Groq free tier) |
+| Builder (stages 3–4) | `gemini-3.8-flash` (same fallback) | Google Gemini API, paid Tier 1 |
+| Judge (stage 1 check) | `qwen/qwen3.8-27b` | Groq free tier |
+| Reviewer (stage 6) | `gemini-4-hydrogen` (fallback `qwen/qwen3.8-27b`) | Google Gemini API, paid Tier 1 |
 | Injection screen | `meta-llama/llama-prompt-guard-2-86m` | Groq free tier |
 
-Each model is set by a repository variable (see ADR-011, which supersedes ADR-006). Runs 1–14 used `openai/gpt-oss-120b`/`-20b` on Groq's free tier for the planner and builder. Later runs use Gemini (ADR-019). `state.json` in each run records the models used.
+Each model is set by a repository variable (`PLANNER_MODEL`, `BUILDER_MODEL`, `JUDGE_MODEL`, `REVIEWER_MODEL`, `GUARD_MODEL`). Runs 1 to 14 used `gpt-oss-120b`/`-20b` on Groq for the planner and builder; later runs use Gemini (ADR-019). Each run records its models in `state.json`.
 
-## How to trigger
-On an issue in the fork, a collaborator either:
-- adds the label `autose`, or
-- comments `/autose`.
+API keys are stored only as repository secrets (`GEMINI_API_KEY`, `GROQ_API_KEY`). Total recorded use: 2.37 M tokens, about US$2.1 on Gemini; Groq was free.
+
+## How to trigger the workflow
+A collaborator (owner, member or collaborator) can start a run on an issue in the fork in any of these ways:
+- add the label `autose` to the issue;
+- comment `/autose` on the issue;
+- open Actions, choose **AutoSE**, then **Run workflow** with the issue number (optional: round, and the stage to start at).
+
+The run ends with a pull request and a review comment. If the reviewer requests changes, the comment shows the command for a second round (`/autose round 2 implement` or `/autose round 2 design`), and a person decides whether to type it. The workflow never merges.
+
+Two further workflows, also started by hand, were used for the evaluation:
+- **AutoSE review only** runs the reviewer on any pull request. It was used for the seeded PRs and experiment E1.
+- **AutoSE experiment E2** runs the builder alone, with the full or summarised hand-off.
 
 ## Layout
 ```
-architecture/views/      component view, sequence view, stage map
-architecture/decisions/  ADR-001 … ADR-028 (ADR-006 superseded)
-workflow/                copy of the fork's .github/workflows + autose/ agent code
-experiment/              issues, hidden tests, seeded PRs, variants.md
-results/                 results.csv, runs.md
+report.pdf               the report (source: report/report.html)
+architecture/views/      component view, sequence view (real runs), stage map
+architecture/decisions/  ADR-001 ... ADR-028 (ADR-006 superseded, ADR-018 rejected; both kept)
+workflow/                copy of the fork's .github/workflows/, autose/ (agent code and prompts),
+                         skills/ and ARCHITECTURE.md
+experiment/issues/       the 5 issue texts (2 bugs, 2 features, 1 vague)
+experiment/hidden_tests/ acceptance tests kept outside the fork
+experiment/seeded_prs/   the 5 reviewer-check PRs: diffs, labels.csv and answer key
+experiment/variants.md   what each variant of experiments E1 and E2 changes, and the results
+results/results.csv      one row per issue: outcome, hidden tests, tokens, runs
+results/runs.md          links to every Actions run, pull request and review
+results/seeded_reviews.csv, results/e2_handoff.csv   per-run data for the experiments
 ```
 
 ## Demo video
-TODO
+Link: to be added.

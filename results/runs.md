@@ -124,3 +124,34 @@ One manual dispatch of `autose-e2.yml` ran 20 builder-only runs (issues #3–#7 
 The summary arm lost one run (issue #5 rep 2: `list[Any]` without `Any` imported, so `import tinydb` fails on 3.12, three attempts in a row) and saved only about 5% of tokens. Issue #7 fails the same way in both arms (the pinned test, ADR-026). **Full artifacts stay (ADR-003).** Small sample: one run apart at n = 2 per cell. Full write-up: `experiment/variants.md`; per run: `results/e2_handoff.csv`.
 
 > **Correction:** a first local pass of the hidden tests used Python 3.14, which evaluates annotations lazily and scored the broken issue-5 branch 9/9. All hidden-test results (issue branches, seeded PRs, E2) were re-run on Python 3.12: the issue and seeded results are unchanged; the repo-suite counts in `results.csv` were lowered by one (3.12 skips one test).
+
+## Index of the other workflow runs
+
+### CI run for each AutoSE pull request (stage 5)
+| PR | Issue | CI run |
+|---|---|---|
+| [#17](https://github.com/RishabhDev01/tinydb/pull/17) | #3 | [44990369982](https://github.com/RishabhDev01/tinydb/actions/runs/44990369982) (re-run in run 19) |
+| [#22](https://github.com/RishabhDev01/tinydb/pull/22) | #4 | [44992918065](https://github.com/RishabhDev01/tinydb/actions/runs/44992918065) |
+| [#23](https://github.com/RishabhDev01/tinydb/pull/23) | #5 | [44993321665](https://github.com/RishabhDev01/tinydb/actions/runs/44993321665) |
+| [#25](https://github.com/RishabhDev01/tinydb/pull/25) | #6 | [44993967530](https://github.com/RishabhDev01/tinydb/actions/runs/44993967530) |
+| [#26](https://github.com/RishabhDev01/tinydb/pull/26) | #7 | [44994715480](https://github.com/RishabhDev01/tinydb/actions/runs/44994715480) |
+
+### "AutoSE review only" runs (seeded PRs, E1)
+| # | Run | PR reviewed | Reviewer model | Verdict |
+|---|---|---|---|---|
+| 1 | [44996163932](https://github.com/RishabhDev01/tinydb/actions/runs/44996163932) | [#29](https://github.com/RishabhDev01/tinydb/pull/29) S1 | gemini-4-hydrogen | changes |
+| 2 | [44996293421](https://github.com/RishabhDev01/tinydb/actions/runs/44996293421) | [#30](https://github.com/RishabhDev01/tinydb/pull/30) S2 | gemini-4-hydrogen | changes |
+| 3 | [44996311924](https://github.com/RishabhDev01/tinydb/actions/runs/44996311924) | [#31](https://github.com/RishabhDev01/tinydb/pull/31) S3 | gemini-4-hydrogen | changes |
+| 4 | [44996329084](https://github.com/RishabhDev01/tinydb/actions/runs/44996329084) | [#32](https://github.com/RishabhDev01/tinydb/pull/32) S4 | gemini-4-hydrogen | changes |
+| 5 | [44996347841](https://github.com/RishabhDev01/tinydb/actions/runs/44996347841) | [#33](https://github.com/RishabhDev01/tinydb/pull/33) S5 | gemini-4-hydrogen | approve |
+| 6 | [44996533445](https://github.com/RishabhDev01/tinydb/actions/runs/44996533445) | [#29](https://github.com/RishabhDev01/tinydb/pull/29) S1 | gemini-3.8-flash | changes |
+| 7 | [44996551796](https://github.com/RishabhDev01/tinydb/actions/runs/44996551796) | [#30](https://github.com/RishabhDev01/tinydb/pull/30) S2 | gemini-3.8-flash | changes |
+| 8 | [44996572607](https://github.com/RishabhDev01/tinydb/actions/runs/44996572607) | [#31](https://github.com/RishabhDev01/tinydb/pull/31) S3 | gemini-3.8-flash | changes |
+| 9 | [44996592925](https://github.com/RishabhDev01/tinydb/actions/runs/44996592925) | [#32](https://github.com/RishabhDev01/tinydb/pull/32) S4 | gemini-3.8-flash | changes |
+| 10 | [44996619061](https://github.com/RishabhDev01/tinydb/actions/runs/44996619061) | [#33](https://github.com/RishabhDev01/tinydb/pull/33) S5 | gemini-3.8-flash | approve |
+| 11 | [44996830372](https://github.com/RishabhDev01/tinydb/actions/runs/44996830372) | [#26](https://github.com/RishabhDev01/tinydb/pull/26) (AutoSE, gamed) | gemini-3.8-flash | changes |
+
+Each verdict is in the run's job summary and in its `verdict.json` artifact.
+
+### "AutoSE experiment E2" run
+One dispatch, run [44997545427](https://github.com/RishabhDev01/tinydb/actions/runs/44997545427), with 20 builder jobs (issues #3–#7 × full/summary × 2 repetitions). Each job pushed its result to a branch `e2/<handoff>/issue-N-r<rep>` (for example [e2/full/issue-5-r1](https://github.com/RishabhDev01/tinydb/tree/e2/full/issue-5-r1)), with outcome, attempts and tokens in `.autose/issue-N/e2.json`. Per-job results: `results/e2_handoff.csv`.
