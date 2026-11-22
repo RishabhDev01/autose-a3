@@ -6,7 +6,7 @@ A GitHub Actions workflow on a fork of TinyDB. It takes an issue through require
 - Upstream: https://github.com/msiemens/tinydb
 - Fork: https://github.com/RishabhDev01/tinydb
 - Base commit: `edff96aeb2616402e9489d46e90a592c05565621` (`edff96a`)
-- Workflow code at the end of the project: fork `master` at `7cc4505` (after PR #34)
+- Workflow code at the end of the project: fork `master` at `d04b1e4` (after PR #35)
 - Branch protection on `master`: PR required, no bypass, no force push, no deletion
 
 ## Models
@@ -38,7 +38,7 @@ Two further workflows, also started by hand, were used for the evaluation:
 ```
 report.pdf               the report (source: report/report.html)
 architecture/views/      component view, sequence view (real runs), stage map
-architecture/decisions/  ADR-001 ... ADR-028 (ADR-006 superseded, ADR-018 rejected; both kept)
+architecture/decisions/  ADR-001 ... ADR-029 (ADR-006 superseded, ADR-018 rejected; both kept)
 workflow/                copy of the fork's .github/workflows/, autose/ (agent code and prompts),
                          skills/ and ARCHITECTURE.md
 experiment/issues/       the 5 issue texts (2 bugs, 2 features, 1 vague)
