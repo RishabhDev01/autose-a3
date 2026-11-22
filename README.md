@@ -42,6 +42,7 @@ Two further workflows, also started by hand, were used for the evaluation:
 ## Layout
 ```
 report.pdf               the report
+demo.mp4                 the demo video
 architecture/views/      component view, sequence view (real runs), stage map
 architecture/decisions/  ADR-001 ... ADR-029 (ADR-006 superseded, ADR-018 rejected; both kept)
 workflow/                copy of the fork's .github/workflows/, autose/ (agent code and prompts),
@@ -56,4 +57,6 @@ results/seeded_reviews.csv, results/e2_handoff.csv   per-run data for the experi
 ```
 
 ## Demo video
-Link: to be added.
+[`demo.mp4`](demo.mp4) (3 min 8 s, narrated). Direct link: https://github.com/RishabhDev01/autose-a3/blob/main/demo.mp4
+
+It shows one complete real run on issue #5: the issue page, the `autose` label, the run log, pull request #23 and the independent review posted on it. It also shows the comment trigger on issue #6, three design decisions (patch-mode builder, the test-gaming check added after PR #26, designing around rate limits) and the evaluation results.
