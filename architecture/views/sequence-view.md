@@ -1,5 +1,7 @@
 # Sequence view: one real run, from trigger to review
 
+This is the full view. Figure 2 in `report.pdf` is a 12-step summary of Part 1 (run 24), with only the five main participants. The GitHub, gate, guard, judge, CI and post-job steps shown here are folded into those steps.
+
 This view follows **real** runs on the fork, message by message, with links to the Actions runs, PRs and artifacts. Every number comes from the run's `state.json`, test report or job summary. The full run history is in `results/runs.md`.
 
 - **Part 1, the happy path:** run 24, issue #5 `pluck`. It includes a spec redo, a failed first build attempt and an approving review.

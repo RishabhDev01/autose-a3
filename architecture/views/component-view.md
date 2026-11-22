@@ -1,5 +1,7 @@
 # Component view
 
+This is the full view. Figure 1 in `report.pdf` is a simplified drawing of the same design: it merges the gate, post and CI steps into fewer boxes so it fits on one page. The dashed arrow from the human back to the orchestrator is the review round 2, which restarts at Design or Implement.
+
 Two repositories are involved:
 
 | Repo | Contents | Why separate |
@@ -52,6 +54,7 @@ flowchart LR
   REV -->|review.md + verdict.json| POST
   POST -->|changes: comment<br/>'/autose round 2 stage'| HUMAN[Human: merge, close,<br/>or start round 2]
   POST -->|approve| HUMAN
+  HUMAN -.->|"/autose round 2 design"<br/>or "... implement" (max 2 rounds)| ORCH
 ```
 
 Two more workflows reuse these parts for evaluation, and both are started by hand only:
