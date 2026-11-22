@@ -51,13 +51,13 @@
 <h1>AutoSE: Issue In, Pull Request Out</h1>
 <div class="meta">
   A3 report. Fork: github.com/RishabhDev01/tinydb (base commit <code>edff96a</code>). Submission repository: github.com/RishabhDev01/autose-a3.
-  Run links are listed in <code>results/runs.md</code>; per-run data is in <code>results/*.csv</code>; the 28 ADRs are in <code>architecture/decisions/</code>.
+  Run links are listed in <code>results/runs.md</code>; per-run data is in <code>results/*.csv</code>; the 29 ADRs are in <code>architecture/decisions/</code>.
 </div>
 
 <div class="kpi">
   <div><b>4 of 5</b><span>issues ended in a reviewer-approved PR that passes all of its hidden tests</span></div>
   <div><b>16 of 16</b><span>reviewer verdicts matched the ground truth</span></div>
-  <div><b>40</b><span>workflow runs (28 pipeline, 11 review-only, 1 experiment run with 20 jobs)</span></div>
+  <div><b>43</b><span>workflow runs (31 pipeline, 11 review-only, 1 experiment run with 20 jobs)</span></div>
   <div><b>2.37 M</b><span>tokens recorded, about US$2.1 on Gemini; Groq was free</span></div>
 </div>
 
@@ -154,6 +154,7 @@ sequenceDiagram
 <tr><td>026</td><td>Test gaming</td><td>gaming scan, conflict stop, manual round 2</td><td>builder edits old tests</td><td>run 27 gamed a test</td><td>Accepted</td></tr>
 <tr><td>027</td><td>Review-only workflow</td><td>reviewer on any PR</td><td>reviewing locally</td><td>keys stay in GitHub</td><td>Accepted</td></tr>
 <tr><td>028</td><td>E2 outcome</td><td>keep full hand-off</td><td>five-line summary</td><td>more hidden tests passed</td><td>Accepted</td></tr>
+<tr><td>029</td><td>Re-trigger after release</td><td>label or comment starts a fresh run</td><td>commit final status after CI</td><td>run 29 resumed at release</td><td>Accepted</td></tr>
 </table>
 
 <h3>Decision 1: the builder edits code chosen for it (ADR-016)</h3>
