@@ -159,3 +159,15 @@ Each verdict is in the run's job summary and in its `verdict.json` artifact.
 
 ### "AutoSE experiment E2" run
 One dispatch, run [44997545427](https://github.com/RishabhDev01/tinydb/actions/runs/44997545427), with 20 builder jobs (issues #3–#7 × full/summary × 2 repetitions). Each job pushed its result to a branch `e2/<handoff>/issue-N-r<rep>` (for example [e2/full/issue-5-r1](https://github.com/RishabhDev01/tinydb/tree/e2/full/issue-5-r1)), with outcome, attempts and tokens in `.autose/issue-N/e2.json`. Per-job results: `results/e2_handoff.csv`.
+
+## Maintainer decisions after review (2026-11-22)
+
+The workflow never merges; these decisions were made by the maintainer after reading the reviews.
+
+| PR | What | Decision | Why |
+|---|---|---|---|
+| [#26](https://github.com/RishabhDev01/tinydb/pull/26) | AutoSE PR for issue #7 (vague) | **closed, not merged** | The reviewer requested changes: the builder special-cased an existing test (`sys._getframe`); it also fails 2 of 9 hidden tests. Changing the behaviour that invariant 3 pins is a product decision (ADR-026) |
+| [#29](https://github.com/RishabhDev01/tinydb/pull/29)–[#33](https://github.com/RishabhDev01/tinydb/pull/33) | Seeded reviewer-calibration PRs S1–S5 | **closed, not merged** | They exist only to test the reviewer (ADR-027); the answer key and diffs are in `experiment/seeded_prs/` |
+| [#17](https://github.com/RishabhDev01/tinydb/pull/17), [#22](https://github.com/RishabhDev01/tinydb/pull/22), [#23](https://github.com/RishabhDev01/tinydb/pull/23), [#25](https://github.com/RishabhDev01/tinydb/pull/25) | Approved AutoSE PRs for issues #3–#6 | left **open** for the maintainer | Approved, CI green, all hidden tests pass |
+
+Closed PRs keep their diffs, reviews and branches, so every link above still opens.
