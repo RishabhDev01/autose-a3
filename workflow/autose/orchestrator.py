@@ -21,7 +21,7 @@ from pathlib import Path
 
 from . import checks, gh, patcher
 from .agent import AgentStopped, run_agent
-from .llm import (USAGE, BudgetExceeded, LLMError, QuotaExhausted,
+from .llm import (LAST_FINISH, USAGE, BudgetExceeded, LLMError, QuotaExhausted,
                   RequestTooLarge, chat, extract_json, log, strip_think)
 from .tools import Workspace, clip, run_pytest, toolset
 
@@ -36,13 +36,18 @@ MODELS = {
                             "meta-llama/llama-prompt-guard-2-86m"),
 }
 BUDGET = {  # tokens per agent per run (ADR-009)
-    "planner": int(os.environ.get("PLANNER_BUDGET", "150000")),
-    "builder": int(os.environ.get("BUILDER_BUDGET", "120000")),
+    # ADR-022: spec + design share this. 150k was sized for Groq's 8k TPM;
+    # on Gemini run 17 used 126k and run 20 hit 153k in design (~$0.12).
+    "planner": int(os.environ.get("PLANNER_BUDGET", "400000")),
+    "builder": int(os.environ.get("BUILDER_BUDGET", "200000")),
     "judge": 30000,
 }
 # ADR-016: "patch" = localize -> one-shot patch -> validate (default);
 # "agent" = the earlier free tool loop (ADR-005/014), kept for comparison.
 BUILDER_MODE = os.environ.get("BUILDER_MODE", "patch")
+# ADR-023: Gemini counts thinking as output. 3000 cut off run 21's answers
+# (3 functions + tests); 12k is about $0.045 per call on 3.8 Flash.
+BUILDER_MAX_TOKENS = int(os.environ.get("BUILDER_MAX_TOKENS", "12000"))
 MAX_IMPLEMENT_ATTEMPTS = 3
 MAX_DESIGN_REENTRIES = 1
 MAX_SPEC_REDOS = 1
@@ -167,9 +172,12 @@ class Run:
         if exists:
             self.sync_with_master(fresh=(start == "guard"))
         self.base = gh.run(["git", "merge-base", "origin/master", "HEAD"])
-        if start == "guard" and self.state.get("history"):
+        if start in ("guard", "spec", "design") and                 self.state.get("history"):
             # A fresh start must not build on an earlier run's code (run 12
-            # left a half-written test file on the branch). --no-overlay
+            # left a half-written test file on the branch). A restart at
+            # spec or design also gets a clean tree and fresh counters, or
+            # an earlier run's used-up attempts stop the builder at once
+            # (ADR-023). The spec in .autose/ is kept. --no-overlay
             # also deletes tracked files that master does not have; plain
             # checkout only overwrites (found reproducing run 13).
             for d in ("tinydb", "tests", "docs"):
@@ -183,6 +191,7 @@ class Run:
                            + left[:300])
             self.state["attempts"] = {}
             self.state["design_reentries"] = 0
+            self.state["conflicts"] = {}
         self.state["status"] = "running"
         self.event("setup", "ok", f"start={start} base={self.base[:7]}")
         gh.comment_issue(self.n, f"**AutoSE** round {self.round} started "
@@ -358,6 +367,19 @@ class Run:
         if not any(f.startswith("tinydb/") for f in files):
             return False, "no change under tinydb/ yet; implement the " \
                 "design.", report
+        # ADR-026: production code must not detect or special-case tests
+        # (run 27 passed CI by checking the caller's function name).
+        gaming = checks.test_gaming(gh.run(
+            ["git", "diff", self.base, "--", "tinydb"], check=False))
+        if gaming:
+            report["gaming"] = gaming
+            return False, ("TEST GAMING (stage 3 check): production code "
+                           "must never detect or special-case tests. "
+                           "Remove these lines:\n- " + "\n- ".join(gaming) +
+                           "\nIf an existing test pins the behaviour the "
+                           "issue asks to change, do not work around it: "
+                           "implement the requested behaviour and name "
+                           "that test in SUMMARY."), report
         ok, out = checks.check_build(ROOT)
         report["build"] = ok
         if not ok:
@@ -366,9 +388,18 @@ class Run:
         code, out = run_pytest(ROOT)
         counts = checks.pytest_counts(out)
         report.update(pytest_exit=code, counts=counts,
-                      pytest_tail=clip(out, 2500, tail=True))
+                      pytest_tail=clip(out, 2500, tail=True),
+                      failing=checks.failing_tests(out))
         if code != 0:
-            return False, "TESTS FAILED (stage 4 check):\n" + \
+            # ADR-024: name each failing test with its line and first error,
+            # not the raw tail of the output (run 22).
+            tally = ", ".join(f"{v} {k}" for k, v in counts.items())
+            digest = checks.failure_digest(out)
+            if digest:
+                return False, (f"TESTS FAILED (stage 4 check): {tally}. "
+                               "Each failing test, where it failed and its "
+                               "first error lines:\n" + digest), report
+            return False, f"TESTS FAILED (stage 4 check): {tally}\n" + \
                 clip(out, tail=True), report
         if counts.get("passed", 0) < self.baseline_passed:
             return False, (f"only {counts.get('passed', 0)} tests pass but "
@@ -441,8 +472,14 @@ class Run:
         m = re.search(r"^## Approach.*?(?=^## |\Z)", design, flags=re.M | re.S)
         approach = clip(m.group(0).strip() if m else design, 1500)
         system = prompt("builder_patch.md", test_path=test_path)
+        # ADR-024: the builder also gets ARCHITECTURE.md §4 (invariants), so
+        # facts such as which dicts hold str or int doc IDs reach the agent
+        # that writes the code, not only the planner.
+        m = re.search(r"^## 4\..*?(?=^## 5\.)", ARCHITECTURE_TEXT,
+                      flags=re.M | re.S)
+        invariants = m.group(0).strip() if m else ""
         failure = ("REVIEW FINDINGS / EARLIER FAILURES (fix these):\n" +
-                   self.feedback[:2000]) if self.feedback else ""
+                   clip(self.feedback, 4000)) if self.feedback else ""
         key = f"r{self.round}"
         attempts_log, msg = [], "no implementation attempt left in this round"
         while self.state["attempts"].get(key, 0) < MAX_IMPLEMENT_ATTEMPTS:
@@ -450,14 +487,17 @@ class Run:
             # not use up an attempt.
             n = self.state["attempts"].get(key, 0) + 1
             text = ""
-            # Fit one request under the 8k TPM limit (ADR-013); shrink once.
-            for code_chars, test_chars, fail_chars in ((9000, 4000, 2000),
-                                                       (5000, 2000, 1200)):
+            # ADR-024: sized for Gemini (2M TPM); the second size is the
+            # fallback after a 413 (e.g. on a Groq model, ADR-013).
+            for code_chars, test_chars, fail_chars in ((20000, 6000, 5000),
+                                                       (9000, 3000, 2500)):
                 blocks = patcher.localize(ROOT, rows, max_chars=code_chars)
                 if not blocks:
                     raise Stop("implement", "the design names no existing "
                                "definition or class under tinydb/ to change")
                 user = (acs_text + "\n\n## Design\n" + approach +
+                        ("\n\n## ARCHITECTURE.md " + invariants
+                         if invariants else "") +
                         "\n\n## Code to change (current)\n\n" +
                         patcher.render_blocks(blocks))
                 tp = ROOT / test_path
@@ -466,7 +506,9 @@ class Run:
                              clip(tp.read_text("utf-8"), test_chars) +
                              "\n```")
                 if failure:
-                    user += "\n\n" + clip(failure, fail_chars, tail=True)
+                    # The instruction and the first failing tests come first,
+                    # so keep the head (ADR-024).
+                    user += "\n\n" + clip(failure, fail_chars)
                 log(f"builder: attempt {n}, patch request "
                     f"{len(system) + len(user)} chars, blocks "
                     f"{[b['name'] for b in blocks]}")
@@ -474,7 +516,8 @@ class Run:
                     reply = chat("builder", MODELS["builder"], [
                         {"role": "system", "content": system},
                         {"role": "user", "content": user}],
-                        max_tokens=3000, budget=BUDGET["builder"])
+                        max_tokens=BUILDER_MAX_TOKENS,
+                        budget=BUDGET["builder"])
                     text = strip_think(reply.content or "")
                     break
                 except RequestTooLarge as e:
@@ -492,6 +535,12 @@ class Run:
                     ROOT, self.base)}
                 msg = (f"YOUR ANSWER COULD NOT BE APPLIED: {e}. Answer again "
                        "in exactly the required format.")
+                if LAST_FINISH.get("builder") == "length":
+                    msg = ("YOUR ANSWER WAS CUT OFF at the output limit "
+                           f"({BUILDER_MAX_TOKENS} tokens) before it was "
+                           f"complete ({e}). Answer again, shorter: replace "
+                           "only the definitions that must change, keep "
+                           "comments brief, and one short test per AC.")
             attempts_log.append((n, ok, msg.splitlines()[0][:150]))
             self.write_test_report(report, attempts_log, summary)
             self.write_patch()
@@ -499,10 +548,37 @@ class Run:
                 self.event("implement+test", "pass", f"attempt {n}")
                 return "release"
             self.event("implement+test", "fail", f"attempt {n}: {msg}")
+            self.check_conflict(report.get("failing", []), test_path)
             failure = (f"## Attempt {n} FAILED the orchestrator's check\n"
-                       f"{msg}\nFix the cause in the code (do not weaken the "
-                       "tests) and answer again in the same format.")
+                       "Fix the cause in the code (do not weaken the tests) "
+                       f"and answer again in the same format.\n\n{msg}")
         return self.after_failed_attempts(msg)
+
+    def check_conflict(self, failing: list, test_path: str) -> None:
+        """ADR-026: stop when only existing tests keep failing, the same
+        way, under two designs. In run 27 one existing test pinned the very
+        behaviour the issue asked to change; the run retried until the
+        builder special-cased that test. Changing pinned behaviour is a
+        maintainer's decision, and AutoSE does not edit existing tests."""
+        if not failing or any(t.startswith(test_path + "::")
+                              for t in failing):
+            return
+        seen = self.state.setdefault("conflicts", {}) \
+            .setdefault(f"r{self.round}", [])
+        seen.append({"design": self.state["design_reentries"],
+                     "tests": failing})
+        same = [s for s in seen if s["tests"] == failing]
+        if len(same) >= 3 and len({s["design"] for s in same}) >= 2:
+            raise Stop("test", (
+                "CONFLICT WITH EXISTING BEHAVIOUR: in "
+                f"{len(same)} attempts under 2 designs, the only failing "
+                "tests were existing tests that pin the current behaviour: "
+                + ", ".join(f"`{t}`" for t in failing) + ". The issue seems "
+                "to ask for a change to behaviour that the project "
+                "documents and tests (see ARCHITECTURE.md §4). AutoSE does "
+                "not edit existing tests, so a maintainer must decide: "
+                "change that behaviour (update the test, then comment "
+                "`/autose`) or decline the issue."))
 
     def after_failed_attempts(self, msg: str) -> str:
         key = f"r{self.round}"
@@ -511,7 +587,7 @@ class Run:
             self.state["design_reentries"] += 1
             self.feedback = ("The previous design was implemented "
                              f"{MAX_IMPLEMENT_ATTEMPTS} times and still failed"
-                             ":\n" + msg[:1500])
+                             ":\n" + clip(msg, 3500))
             self.state["attempts"][key] = 0
             gh.run(["git", "checkout", self.base, "--", "tinydb", "tests"],
                    check=False)
