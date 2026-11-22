@@ -24,6 +24,7 @@ Fork: https://github.com/RishabhDev01/tinydb (base `edff96a`)
 | [#11](https://github.com/RishabhDev01/tinydb/pull/11) | Daily-quota fallback to gpt-oss-20b or stop fast (ADR-015), after run #11 below |
 | [#12](https://github.com/RishabhDev01/tinydb/pull/12) | Patch-mode builder: localize → one-shot patch → validate; quota-stop resume; clean restart (ADR-016), after run #12 below |
 | [#13](https://github.com/RishabhDev01/tinydb/pull/13) | Prompts, skill and ARCHITECTURE.md read from master at import; issue branch merged with master each run; complete reset with `--no-overlay` (ADR-017), after run #13 below |
+| [#14](https://github.com/RishabhDev01/tinydb/pull/14) | Quota stop = **paused** (green run, "paused" comment); scheduled resume every 3 h of the longest-paused issue (ADR-018), after run #14 below |
 
 ## AutoSE runs
 
