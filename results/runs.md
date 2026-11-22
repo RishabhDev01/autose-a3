@@ -34,6 +34,7 @@ Fork: https://github.com/RishabhDev01/tinydb (base `edff96a`)
 | [#24](https://github.com/RishabhDev01/tinydb/pull/24) | `localize` shows the module (full if small, else outline) for a new module-level function (ADR-025), after run #25 below |
 | [#27](https://github.com/RishabhDev01/tinydb/pull/27) | Test-gaming check at stage 3; stop on a conflict with pinned behaviour; review round 2 started by `/autose round 2 <stage>` (ADR-026), after runs #27–#28 below |
 | [#28](https://github.com/RishabhDev01/tinydb/pull/28) | Review-only workflow (`autose-review.yml`) for the seeded PRs and experiment E1; reviewer code from master (ADR-027) |
+| [#34](https://github.com/RishabhDev01/tinydb/pull/34) | Experiment E2 harness: `HANDOFF=full|summary`, `autose/experiment.py`, matrix workflow `autose-e2.yml` (ADR-028) |
 
 ## AutoSE runs
 
@@ -68,7 +69,7 @@ Fork: https://github.com/RishabhDev01/tinydb (base `edff96a`)
 
 ## Hidden acceptance tests (run locally, 2026-11-22)
 
-Each AutoSE branch was checked out at its final state, `experiment/hidden_tests/` was copied in, and the relevant file was run (3 storages each). The fork's own suite was also run. Master baseline: **39 failed, 9 passed** (as documented in `experiment/hidden_tests/README.md`), 228 passed in the repo suite.
+Each AutoSE branch was checked out at its final state (re-run on **Python 3.12**, the CI version; results unchanged, suite counts are the 3.12 ones), `experiment/hidden_tests/` was copied in, and the relevant file was run (3 storages each). The fork's own suite was also run. Master baseline: **39 failed, 9 passed** (as documented in `experiment/hidden_tests/README.md`), 228 passed in the repo suite.
 
 | Experiment issue | Branch (PR) | Hidden tests | Repo suite | Review |
 |---|---|---|---|---|
@@ -108,3 +109,18 @@ Per PR, Flash needed 5–18 calls (Hydrogen 2–5): for example, S5 took 18 call
 **Limit of this test:** the seeded PRs were written by a human, not by the builder, so E1 measures each model's review skill, not the "shared blind spot" risk of a model reviewing *its own* output. The only builder-written defect so far is PR #26 (test gaming), which Hydrogen rejected.
 
 **Follow-up: the builder's model reviewing its own gamed PR.** `gemini-3.8-flash` reviewed PR #26 (written by `gemini-3.8-flash` in run 27) in run [44996830372](https://github.com/RishabhDev01/tinydb/actions/runs/44996830372): **changes → design**, 7 calls, 28k tokens. It called the `sys._getframe` branch "test-tampering/cheating to bypass an existing test", and also recognised the real conflict: the PR "directly violates ARCHITECTURE.md Invariant 3", so the issue asks to change intended behaviour and should be rejected or decided by the maintainer. Hydrogen (run 27) also rejected the cheat but suggested updating the old test instead. So on this one builder-written defect, **the same model did not share the blind spot**. Its advice (route to design; a behaviour decision) even matches ADR-026's conflict stop more closely. One case is not enough to rule out the risk; the report should say so.
+
+## Experiment E2: full vs 5-line summary hand-off (ADR-003, ADR-028)
+
+One manual dispatch of `autose-e2.yml` ran 20 builder-only runs (issues #3–#7 × full/summary × 2 repetitions), with the spec and design frozen from each issue's AutoSE branch and no redesign. Results are on the `e2/*` branches; hidden tests were run on Python 3.12.
+
+| | full | summary |
+|---|---|---|
+| Passed the orchestrator's checks | 8/10 | 7/10 |
+| Passed all hidden tests | 8/10 | 7/10 |
+| Hidden tests passed | **92/96** | 83/96 |
+| Builder tokens in / out | 52.6k / 37.3k | 49.9k / 34.2k |
+
+The summary arm lost one run (issue #5 rep 2: `list[Any]` without `Any` imported, so `import tinydb` fails on 3.12, three attempts in a row) and saved only about 5% of tokens. Issue #7 fails the same way in both arms (the pinned test, ADR-026). **Full artifacts stay (ADR-003).** Small sample: one run apart at n = 2 per cell. Full write-up: `experiment/variants.md`; per run: `results/e2_handoff.csv`.
+
+> **Correction:** a first local pass of the hidden tests used Python 3.14, which evaluates annotations lazily and scored the broken issue-5 branch 9/9. All hidden-test results (issue branches, seeded PRs, E2) were re-run on Python 3.12: the issue and seeded results are unchanged; the repo-suite counts in `results.csv` were lowered by one (3.12 skips one test).

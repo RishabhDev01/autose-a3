@@ -1,0 +1,21 @@
+experiment_issue,fork_issue,handoff,rep,branch,checks_outcome,attempts,builder_prompt_tokens,builder_completion_tokens,builder_calls,hidden_passed,hidden_total,repo_suite_passed_py312,repo_suite_failed_py312,note
+1,3,full,1,e2/full/issue-3-r1,pass,2,6745,2159,2,9,9,231,0,
+1,3,full,2,e2/full/issue-3-r2,pass,1,2531,1098,1,9,9,231,0,
+1,3,summary,1,e2/summary/issue-3-r1,pass,1,2058,1191,1,9,9,231,0,
+1,3,summary,2,e2/summary/issue-3-r2,pass,1,2058,1234,1,9,9,231,0,
+2,4,full,1,e2/full/issue-4-r1,pass,1,4797,3110,1,12,12,232,0,
+2,4,full,2,e2/full/issue-4-r2,pass,1,4797,3066,1,12,12,232,0,
+2,4,summary,1,e2/summary/issue-4-r1,pass,2,10128,5650,2,12,12,232,0,
+2,4,summary,2,e2/summary/issue-4-r2,pass,1,4567,3041,1,12,12,232,0,
+3,5,full,1,e2/full/issue-5-r1,pass,2,5118,1350,2,9,9,232,0,"attempt 1 build failed (same missing Any import), fixed on attempt 2"
+3,5,full,2,e2/full/issue-5-r2,pass,2,5115,1341,2,9,9,232,0,"attempt 1 build failed (same missing Any import), fixed on attempt 2"
+3,5,summary,1,e2/summary/issue-5-r1,pass,2,4331,1361,2,9,9,232,0,"attempt 1 build failed (same missing Any import), fixed on attempt 2"
+3,5,summary,2,e2/summary/issue-5-r2,fail,3,6749,3018,3,0,9,0,0,"NameError: Any not imported in table.py (pluck annotation); import fails on Python 3.12, so 0 hidden tests run"
+4,6,full,1,e2/full/issue-6-r1,pass,1,2249,633,1,9,9,231,0,
+4,6,full,2,e2/full/issue-6-r2,pass,1,2249,633,1,9,9,231,0,
+4,6,summary,1,e2/summary/issue-6-r1,pass,1,2016,676,1,9,9,231,0,
+4,6,summary,2,e2/summary/issue-6-r2,pass,1,2016,699,1,9,9,231,0,
+5,7,full,1,e2/full/issue-7-r1,fail,3,9534,10816,3,7,9,230,1,"only failing test: test_query_cache_documents_are_shared_with_cache (pinned behaviour, ADR-026)"
+5,7,full,2,e2/full/issue-7-r2,fail,3,9479,13096,3,7,9,230,1,"only failing test: test_query_cache_documents_are_shared_with_cache (pinned behaviour, ADR-026)"
+5,7,summary,1,e2/summary/issue-7-r1,fail,3,8153,9401,3,7,9,230,1,"only failing test: test_query_cache_documents_are_shared_with_cache (pinned behaviour, ADR-026)"
+5,7,summary,2,e2/summary/issue-7-r2,fail,3,7831,7928,3,7,9,230,1,"only failing test: test_query_cache_documents_are_shared_with_cache (pinned behaviour, ADR-026)"
