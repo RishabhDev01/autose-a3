@@ -27,7 +27,7 @@ On an issue in the fork, a collaborator either:
 ## Layout
 ```
 architecture/views/      component view, sequence view, stage map
-architecture/decisions/  ADR-001 … ADR-026 (ADR-006 superseded)
+architecture/decisions/  ADR-001 … ADR-027 (ADR-006 superseded)
 workflow/                copy of the fork's .github/workflows + autose/ agent code
 experiment/              issues, hidden tests, seeded PRs, variants.md
 results/                 results.csv, runs.md

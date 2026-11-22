@@ -33,6 +33,7 @@ Fork: https://github.com/RishabhDev01/tinydb (base `edff96a`)
 | [#21](https://github.com/RishabhDev01/tinydb/pull/21) | Failing tests named with line and error (`failure_digest`); helper code always shown by `localize`; ARCHITECTURE.md invariant 2 states the `str`/`int` doc-ID key forms, and the builder gets §4 (ADR-024), after run #22 below. **Human context edit**, see ADR-024 |
 | [#24](https://github.com/RishabhDev01/tinydb/pull/24) | `localize` shows the module (full if small, else outline) for a new module-level function (ADR-025), after run #25 below |
 | [#27](https://github.com/RishabhDev01/tinydb/pull/27) | Test-gaming check at stage 3; stop on a conflict with pinned behaviour; review round 2 started by `/autose round 2 <stage>` (ADR-026), after runs #27–#28 below |
+| [#28](https://github.com/RishabhDev01/tinydb/pull/28) | Review-only workflow (`autose-review.yml`) for the seeded PRs and experiment E1; reviewer code from master (ADR-027) |
 
 ## AutoSE runs
 
@@ -78,3 +79,32 @@ Each AutoSE branch was checked out at its final state, `experiment/hidden_tests/
 | 5 vague: result isolation | `autose/issue-7` ([#26](https://github.com/RishabhDev01/tinydb/pull/26)) | 7/9 | 232 passed | changes (test gaming) |
 
 Issue 5: the change deep-copies `search()` results only; `test_get_result_mutation_does_not_leak` fails on `memory` and `caching`, because `get(cond)` still returns the stored object. The branch also contains the gamed `sys._getframe` branch, so it is not a valid solution regardless (ADR-026). The reviewer's verdict (changes) agrees with the hidden tests: every approved PR passes all its hidden tests, and the one PR it rejected does not. Per-run numbers are in `results.csv`.
+
+## Reviewer calibration on 5 seeded PRs (ADR-008, ADR-027)
+
+Five hand-written PRs (#29–#33; answer key in `experiment/seeded_prs/README.md`), all with green tests, reviewed by `gemini-4-hydrogen` through the review-only workflow. The reviewer saw only the issue and the diff.
+
+| Seeded | PR | Truth | Verdict | Right reason? | Run |
+|---|---|---|---|---|---|
+| S1 | [#29](https://github.com/RishabhDev01/tinydb/pull/29) | buggy (swallows `KeyError`, keeps partial update) | **changes** → design | yes: "swallows KeyError/TypeError instead of failing atomically" | [44996163932](https://github.com/RishabhDev01/tinydb/actions/runs/44996163932) |
+| S2 | [#30](https://github.com/RishabhDev01/tinydb/pull/30) | buggy (`remove` only) | **changes** → implement | yes: `update` not converted (line 465), `get` returns `str` doc_id (line 369) | [44996293421](https://github.com/RishabhDev01/tinydb/actions/runs/44996293421) |
+| S3 | [#31](https://github.com/RishabhDev01/tinydb/pull/31) | buggy (`None` for missing field) | **changes** → implement | yes: "returns None ... rather than skipping"; no test for missing fields | [44996311924](https://github.com/RishabhDev01/tinydb/actions/runs/44996311924) |
+| S4 | [#32](https://github.com/RishabhDev01/tinydb/pull/32) | buggy (shared mutable default) | **changes** → implement | yes: "mutable default argument ... share the same list instance" | [44996329084](https://github.com/RishabhDev01/tinydb/actions/runs/44996329084) |
+| S5 | [#33](https://github.com/RishabhDev01/tinydb/pull/33) | correct | **approve** | yes, no findings | [44996347841](https://github.com/RishabhDev01/tinydb/actions/runs/44996347841) |
+
+**Result: 4/4 seeded bugs caught for the right reason, 0/1 false alarms; approval rate on buggy PRs 0%.** About 30 s and 6–22k tokens per review. With the 4 AutoSE PRs (approved, all hidden tests pass) and PR #26 (rejected, gamed; fails 2 hidden tests), the reviewer agreed with ground truth on **10/10** PRs. Per-review numbers: `results/seeded_reviews.csv`.
+
+## Experiment E1: reviewer model (same 5 seeded PRs)
+
+The same five seeded PRs were reviewed by the **builder's model**, `gemini-3.8-flash`, through the same workflow and prompt (only `reviewer_model` changed). This is the "same model as the author" option that ADR-008 rejected.
+
+| Reviewer | Bugs caught (right reason) | False alarms | LLM calls | Prompt / completion tokens | Cost (list price) |
+|---|---|---|---|---|---|
+| `gemini-4-hydrogen` (default, ADR-021) | **4/4** | **0/1** | 16 | 54,412 / 4,092 | **$0.11** |
+| `gemini-3.8-flash` (builder's model) | **4/4** | **0/1** | 55 | 251,567 / 5,643 | $0.21 |
+
+Per PR, Flash needed 5–18 calls (Hydrogen 2–5): for example, S5 took 18 calls and 91k prompt tokens with Flash vs 3 calls and 10k with Hydrogen. So **verdict quality was the same, but Flash cost about 1.9× more** despite half the per-token price, because it read far more code before deciding. Runs: `results/seeded_reviews.csv`.
+
+**Limit of this test:** the seeded PRs were written by a human, not by the builder, so E1 measures each model's review skill, not the "shared blind spot" risk of a model reviewing *its own* output. The only builder-written defect so far is PR #26 (test gaming), which Hydrogen rejected.
+
+**Follow-up: the builder's model reviewing its own gamed PR.** `gemini-3.8-flash` reviewed PR #26 (written by `gemini-3.8-flash` in run 27) in run [44996830372](https://github.com/RishabhDev01/tinydb/actions/runs/44996830372): **changes → design**, 7 calls, 28k tokens. It called the `sys._getframe` branch "test-tampering/cheating to bypass an existing test", and also recognised the real conflict: the PR "directly violates ARCHITECTURE.md Invariant 3", so the issue asks to change intended behaviour and should be rejected or decided by the maintainer. Hydrogen (run 27) also rejected the cheat but suggested updating the old test instead. So on this one builder-written defect, **the same model did not share the blind spot**. Its advice (route to design; a behaviour decision) even matches ADR-026's conflict stop more closely. One case is not enough to rule out the risk; the report should say so.
