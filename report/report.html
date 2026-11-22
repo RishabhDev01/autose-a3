@@ -57,7 +57,7 @@
 <div class="kpi">
   <div><b>4 of 5</b><span>issues ended in a reviewer-approved PR that passes all of its hidden tests</span></div>
   <div><b>16 of 16</b><span>reviewer verdicts matched the ground truth</span></div>
-  <div><b>43</b><span>workflow runs (31 pipeline, 11 review-only, 1 experiment run with 20 jobs)</span></div>
+  <div><b>44</b><span>workflow runs (32 pipeline, 11 review-only, 1 experiment run with 20 jobs)</span></div>
   <div><b>2.37 M</b><span>tokens recorded, about US$2.1 on Gemini; Groq was free</span></div>
 </div>
 
@@ -310,6 +310,7 @@ We kept the full hand-off (ADR-028). The experiment also showed that the builder
 </div>
 
 <p><b>What the reviewer caught.</b> The reviewer caught the test gaming in PR 26, which every automatic check had passed. It also caught all four seeded bugs, each with the right line and cause: a swallowed <code>KeyError</code>, a missing conversion in <code>update</code>, <code>None</code> returned instead of skipping, and a shared mutable default argument. It approved the correct seeded PR.</p>
+<p><b>Review round 2.</b> On PR 26 a maintainer comment <code>/autose round 2 implement</code> started run 32. The builder received the review, dropped the stack-inspection code and wrote an honest fix, which still failed only the existing test that pins the old behaviour, so the run stopped and explained why. The loop works; the decision returns to the maintainer.</p>
 <p><b>Where it was wrong or weak.</b> We saw no wrong verdict in sixteen reviews, but there were weaknesses.
 On PR 26, Hydrogen suggested changing the old test, which is a product decision the reviewer should have left to the maintainer.
 The Groq-hosted reviewer in run 17 ended without running the full test suite, so its verdict was rejected.
@@ -349,7 +350,7 @@ We also learned to check results with the same Python version as CI. Our first l
 <li><b>Small samples.</b> There are five issues, six pull requests in E1 and two runs per cell in E2. Each pipeline issue reached success once and was not repeated, although model outputs vary (in E2, issue 5 passed in three of four runs).</li>
 <li><b>Our own ground truth.</b> The hidden tests encode one reading of the vague issue. The seeded bugs are single bugs visible in the diff, written by the same team that built the reviewer, so harder bugs spread over several files were not tested.</li>
 <li><b>Limited independence.</b> The reviewer and the builder are both Gemini models, although from different series. E1 found equal accuracy, but models from one vendor may share blind spots that our tests did not reveal.</li>
-<li><b>Incomplete measurement.</b> Token totals are missing for three runs that stopped before reporting. The prompt-injection guard was never tested against a real attack. Review round 2 (returning requested changes to an earlier stage) is implemented and was triggered once (run 28), but that run was blocked by the gate, so no completed round 2 exists.</li>
+<li><b>Incomplete measurement.</b> Token totals are missing for three runs that stopped before reporting. The prompt-injection guard was never tested against a real attack. Review round 2 has one real run only (run 32 on PR 26): it took the reviewer's findings, removed the cheat and stopped honestly because the pinned test still fails. A round 2 that ends in an approval has not been observed.</li>
 </ul>
 <p style="font-size:8.6pt">The workflow pushes and comments only in our fork and never merges. API keys are kept in repository secrets. A spending limit was set before paid use. All runs, pull requests and reviews are real and linked in <code>results/runs.md</code>.</p>
 
