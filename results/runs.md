@@ -25,6 +25,7 @@ Fork: https://github.com/RishabhDev01/tinydb (base `edff96a`)
 | [#12](https://github.com/RishabhDev01/tinydb/pull/12) | Patch-mode builder: localize → one-shot patch → validate; quota-stop resume; clean restart (ADR-016), after run #12 below |
 | [#13](https://github.com/RishabhDev01/tinydb/pull/13) | Prompts, skill and ARCHITECTURE.md read from master at import; issue branch merged with master each run; complete reset with `--no-overlay` (ADR-017), after run #13 below |
 | [#14](https://github.com/RishabhDev01/tinydb/pull/14) | **Closed, not merged.** Scheduled auto-resume (ADR-018, rejected): the maintainer keeps every run human-triggered |
+| [#15](https://github.com/RishabhDev01/tinydb/pull/15) | Planner and builder on **Gemini 3.8 Flash (paid Tier 1)**; judge and reviewer stay on Groq qwen; fallback to Groq gpt-oss (ADR-019). Groq's Developer tier was closed to upgrades |
 
 ## AutoSE runs
 
