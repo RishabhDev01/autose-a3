@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AutoSE: Issue In, Pull Request Out (A3 report)</title>
+<style>
+  @page { size: A4; margin: 14mm 14mm 14mm 14mm; }
+  :root { --ink:#1b1f24; --mute:#57606a; --rule:#d0d7de; --head:#0b3d91; --bg2:#f6f8fa; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font-family: "Segoe UI", Calibri, Arial, sans-serif; font-size: 9.4pt; line-height: 1.33; color: var(--ink); margin: 0; background:#fff; }
+  h1 { font-size: 16pt; margin: 0 0 2pt; color: var(--head); }
+  h2 { font-size: 12pt; color: var(--head); margin: 9pt 0 4pt; border-bottom: 1.2pt solid var(--head); padding-bottom: 1pt; break-after: avoid; }
+  h3 { font-size: 10pt; margin: 6pt 0 2pt; break-after: avoid; }
+  p { margin: 2pt 0 4pt; }
+  ul { margin: 2pt 0 4pt 14pt; padding: 0; } li { margin: 1pt 0; }
+  a { color: #0550ae; text-decoration: none; }
+  code { font-family: Consolas, "Courier New", monospace; font-size: 8.4pt; background: var(--bg2); padding: 0 2pt; border-radius: 2pt; }
+  table { border-collapse: collapse; width: 100%; margin: 3pt 0 5pt; break-inside: auto; }
+  th, td { border: 0.6pt solid var(--rule); padding: 1.6pt 3.5pt; vertical-align: top; text-align: left; }
+  th { background: var(--bg2); font-weight: 600; }
+  tr { break-inside: avoid; }
+  table.small { font-size: 7.9pt; line-height: 1.22; }
+  table.small code { font-size: 7.3pt; }
+  .meta { color: var(--mute); font-size: 8.6pt; margin-bottom: 4pt; }
+  .meta a { color: var(--mute); text-decoration: underline; }
+  .kpi { display: flex; gap: 6pt; margin: 4pt 0 6pt; }
+  .kpi div { flex: 1; border: 0.8pt solid var(--rule); border-radius: 3pt; padding: 3pt 5pt; background: var(--bg2); }
+  .kpi b { display: block; font-size: 12pt; color: var(--head); }
+  .kpi span { font-size: 7.8pt; color: var(--mute); }
+  .fig { border: 0.6pt solid var(--rule); border-radius: 3pt; padding: 3pt; margin: 3pt 0 4pt; text-align: center; break-inside: avoid; }
+  .fig .mermaid { font-size: 11px; }
+  .cap { font-size: 7.8pt; color: var(--mute); margin-top: 1pt; text-align: left; }
+  .two { display: flex; gap: 8pt; } .two > div { flex: 1; min-width: 0; }
+  .note { font-size: 8.2pt; color: var(--mute); }
+  .pb { break-before: page; }
+  .ok { color: #1a7f37; font-weight: 600; } .bad { color: #cf222e; font-weight: 600; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose",
+    flowchart: { htmlLabels: true, curve: "basis", nodeSpacing: 18, rankSpacing: 22, padding: 4 },
+    sequence: { actorMargin: 22, messageMargin: 10, boxMargin: 4, noteMargin: 4, mirrorActors: false, useMaxWidth: true },
+    themeVariables: { fontSize: "11px" } });
+</script>
+</head>
+<body>
+
+<h1>AutoSE: Issue In, Pull Request Out</h1>
+<div class="meta">
+  A3 report · Fork <a href="https://github.com/RishabhDev01/tinydb">RishabhDev01/tinydb</a> (base <code>edff96a</code>) ·
+  Submission repo <a href="https://github.com/RishabhDev01/autose-a3">RishabhDev01/autose-a3</a> ·
+  Every number below links to, or is traceable from, <code>results/runs.md</code>, <code>results/*.csv</code> and the 28 ADRs in <code>architecture/decisions/</code>.
+</div>
+
+<div class="kpi">
+  <div><b>4 / 5</b><span>issues ended in an approved PR that passes all its hidden tests (39/39 tests)</span></div>
+  <div><b>16 / 16</b><span>reviewer verdicts that agree with ground truth (AutoSE PRs, seeded PRs, both models)</span></div>
+  <div><b>40</b><span>workflow runs: 28 pipeline, 11 review-only, 1 E2 (20 builder jobs), plus CI</span></div>
+  <div><b>2.37 M</b><span>tokens recorded (2.16 M in, 0.21 M out); ≈ US$2.1 on Gemini, Groq free tier</span></div>
+</div>
+
+<!-- ============================ 1 ARCHITECTURE ============================ -->
+<h2>1. Architecture</h2>
+<p><b>The shape.</b> A <b>deterministic Python state machine</b> (the orchestrator) drives six stages. It contains no LLM. Three LLM agents each own a slice:
+the <b>planner</b> (stages 1–2), the <b>builder</b> (stages 3–4) and an <b>independent reviewer</b> (stage 6), which runs in a separate job. Two single-call helpers screen and check: a prompt-injection <b>guard</b> and a <b>testability judge</b>.
+Every stage ends in a check that <i>code</i> decides (ADR-002, ADR-007). Hand-offs are files on the issue branch (<code>.autose/issue-N/</code>), so anyone can follow a run from the PR (ADR-003, ADR-004). The workflow never merges.</p>
+
+<div class="fig"><div class="mermaid">
+flowchart LR
+  I[Issue: label, /autose,<br/>or dispatch] --> G[gate job<br/>trusted, not a bot]
+  G --> O[Orchestrator<br/>state machine, no LLM]
+  O --> PG[guard<br/>llama-prompt-guard]
+  O --> P[Planner<br/>gemini-3.8-flash<br/>read-only tools]
+  P -->|spec.md| J[judge<br/>qwen3.8-27b]
+  P -->|design.md| O
+  O -->|localized code +<br/>invariants| B[Builder<br/>gemini-3.8-flash<br/>no tools]
+  B -->|definitions + tests| C[checks: build, gaming scan,<br/>pytest + digest, AC map,<br/>conflict stop]
+  C -->|failure digest| B
+  O --> R5[release script<br/>push + PR] --> CI[CI]
+  R5 -->|issue + diff only| RV[Reviewer job<br/>gemini-4-hydrogen<br/>read-only token]
+  RV --> PJ[post job<br/>comment + route] --> H[Human: merge, close,<br/>or /autose round 2]
+</div>
+<div class="cap"><b>Figure 1, component view</b> (full version: <code>architecture/views/component-view.md</code>). Build-job token: <code>contents/pull-requests: write</code>. Review job: <code>read</code> only. Two extra hand-started workflows reuse the parts for evaluation: <code>autose-review.yml</code> (seeded PRs, E1) and <code>autose-e2.yml</code>.</div></div>
+
+<table class="small">
+<tr><th>#</th><th>Stage</th><th>Agent (model)</th><th>Artifact</th><th>Check decided by code</th><th>On failure</th></tr>
+<tr><td>0</td><td>Gate + screen</td><td>code; guard (Groq)</td><td><code>state.json</code></td><td>trusted trigger, not a bot (ADR-010); injection score low</td><td>skip / stop</td></tr>
+<tr><td>1</td><td>Requirements</td><td>Planner (Flash) + judge (qwen)</td><td><code>spec.md</code></td><td>template: ≥1 <code>AC-n</code> with Given/When/Then; judge: every AC testable</td><td>1 redo, then stop</td></tr>
+<tr><td>2</td><td>Design</td><td>Planner (Flash)</td><td><code>design.md</code></td><td>"Files to change" table; files exist; named functions found</td><td>1 redo, then stop</td></tr>
+<tr><td>3</td><td>Implement</td><td>orchestrator localizes, Builder patches (Flash)</td><td><code>diff.patch</code></td><td>only <code>tinydb/*.py</code> + own test file; compiles and imports; no test-gaming lines</td><td>digest back to builder (≤3)</td></tr>
+<tr><td>4</td><td>Test</td><td>Builder (same request)</td><td><code>test_report.md</code></td><td>full pytest green; baseline count kept; one test per <code>AC-n</code></td><td>≤3 attempts → design once → stop; <b>conflict stop</b></td></tr>
+<tr><td>5</td><td>Release</td><td>script (no LLM)</td><td>PR + <code>pr.md</code></td><td>PR opened; CI green</td><td>stop</td></tr>
+<tr><td>6</td><td>Review</td><td>Reviewer (Hydrogen), separate job</td><td><code>review.md</code>, <code>verdict.json</code></td><td>valid verdict; tests run; ≥2 risks; approve has no defects</td><td>comment <code>/autose round 2 &lt;stage&gt;</code>; a person decides</td></tr>
+</table>
+<div class="cap" style="margin-top:-2pt"><b>Table 1, stage map</b> (<code>architecture/views/stage-map.md</code>). The reviewer sees only the issue, the diff and the repo. It never sees <code>.autose/</code>, the spec, the design or any transcript (ADR-008).</div>
+
+<div class="fig"><div class="mermaid">
+sequenceDiagram
+  autonumber
+  actor M as Maintainer
+  participant O as Orchestrator
+  participant P as Planner+Judge
+  participant B as Builder
+  participant R as Reviewer
+  M->>O: dispatch issue #35;5 (06:19:40)
+  O->>O: gate ✔ · guard 0.001 ✔ · baseline 227
+  O->>P: issue (untrusted) + skill
+  P-->>O: spec: 5 ACs · judge: AC-5 untestable → redo → ✔ (06:20:12)
+  P-->>O: design: Table.pluck (NEW) "-> list[Any]" ✔ (06:20:46)
+  O->>B: ACs + approach + class outline + invariants
+  B-->>O: attempt 1 → import fails (Any not imported)
+  O->>B: digest of the build error
+  B-->>O: attempt 2 → 233 tests ✔, all ACs tested (06:20:58)
+  O->>O: push, PR #35;23, CI ✔ (06:21:30)
+  O->>R: issue #35;5 + diff only
+  R-->>M: approve: 3 requirements met, 3 risks checked (32 s)
+</div>
+<div class="cap"><b>Figure 2, sequence view of real run 24</b> (<a href="https://github.com/RishabhDev01/tinydb/actions/runs/44993182187">44993182187</a>, 3 min 8 s, PR <a href="https://github.com/RishabhDev01/tinydb/pull/23">#23</a>). The full view, plus the "changes requested" path of run 27, is in <code>architecture/views/sequence-view.md</code>.</div></div>
+
+<!-- ============================ 2 DECISIONS ============================ -->
+<h2 class="pb">2. Design decisions</h2>
+<table class="small">
+<tr><th>ADR</th><th>Decision</th><th>Chosen</th><th>Main rejected option</th><th>Main reason</th><th>Status</th></tr>
+<tr><td>001</td><td>Agent split</td><td>3 agents + deterministic code</td><td>one agent per stage (6)</td><td>fewer cold starts; builder keeps its own context</td><td>Accepted</td></tr>
+<tr><td>002</td><td>Control flow</td><td>Python state machine; reviewer in its own job</td><td>LLM orchestrator</td><td>predictable, auditable, no tokens</td><td>Accepted</td></tr>
+<tr><td>003</td><td>Hand-offs</td><td>full files (spec, design)</td><td>summaries only</td><td>keeps exact AC wording; <b>confirmed by E2</b></td><td>Accepted</td></tr>
+<tr><td>004</td><td>State</td><td>files on the branch + artifacts</td><td>Actions cache</td><td>durable, versioned, visible in the PR</td><td>Accepted, amended</td></tr>
+<tr><td>005</td><td>Agent runtime</td><td>own tool loop + per-agent allow-list</td><td>mini-swe-agent (bash)</td><td>permissions enforced in code</td><td>Accepted, amended by 014/016</td></tr>
+<tr><td>006</td><td>Models (v1)</td><td>Groq, reviewer from another family</td><td>same model everywhere</td><td>independence</td><td><b>Superseded</b> by 011</td></tr>
+<tr><td>007</td><td>Checks</td><td>deterministic first; LLM judge only for testability</td><td>LLM judge for everything</td><td>cheaper, less noisy</td><td>Accepted, amended by 026</td></tr>
+<tr><td>008</td><td>Reviewer independence</td><td>separate job, model, prompt, inputs, read-only token</td><td>reviewer in the build job</td><td>no shared context or blind spots; <b>tested by E1</b></td><td>Accepted</td></tr>
+<tr><td>009</td><td>Budgets and untrusted input</td><td>hard token/turn budgets; issue text as data</td><td>trust the issue</td><td>cost control; injection safety</td><td>Accepted, amended</td></tr>
+<tr><td>010</td><td>Triggers</td><td>label or <code>/autose</code> by collaborators; one run per issue</td><td>label only</td><td>re-runnable; only trusted users</td><td>Accepted</td></tr>
+<tr><td>011</td><td>Models (v2)</td><td>models our Groq key can use; prompt guard</td><td>gpt-oss-20b as reviewer</td><td>same family would share blind spots</td><td>Accepted, amended by 019</td></tr>
+<tr><td>012</td><td>CI</td><td>slim pytest CI started by the release step</td><td>a PAT so PR events trigger CI</td><td>no long-lived broad secret</td><td>Accepted</td></tr>
+<tr><td>013</td><td>Request sizing</td><td>fit every request to 8k TPM</td><td>paid tier (at the time)</td><td>free-key constraint</td><td>Accepted, later relaxed</td></tr>
+<tr><td>014</td><td>Tool tolerance</td><td>tools accept the model's argument shapes; <code>replace_lines</code></td><td>raise <code>max_turns</code></td><td>run 10: 40 turns, 0 edits</td><td>Accepted, superseded in practice by 016</td></tr>
+<tr><td>015</td><td>Daily quota</td><td>fall back to a smaller model, or stop fast</td><td>sleep with a long timeout</td><td>run 11 slept for 2.5 h</td><td>Accepted</td></tr>
+<tr><td>016</td><td>Builder shape</td><td><b>localize → one-shot patch → validate</b></td><td>tool loop with more turns</td><td>runs 10/12 wandered; quota was binding</td><td>Accepted</td></tr>
+<tr><td>017</td><td>Instruction source</td><td>prompts/skill/ARCHITECTURE from master; branch merged</td><td>recreate branch each start</td><td>run 13 used stale prompts</td><td>Accepted</td></tr>
+<tr><td>018</td><td>Quota resume</td><td>(scheduled auto-resume)</td><td>—</td><td>maintainer wants every run started by a person</td><td><b>Rejected</b></td></tr>
+<tr><td>019</td><td>Provider</td><td>planner and builder on Gemini 3.8 Flash (paid)</td><td>wait for the Groq refill</td><td>Groq Developer tier unavailable; throughput</td><td>Accepted</td></tr>
+<tr><td>020</td><td>Turn budget</td><td>stated budget; only <code>finish</code> in last 3 turns</td><td>raise <code>max_turns</code></td><td>run 16: planner never finished</td><td>Accepted</td></tr>
+<tr><td>021</td><td>Reviewer model</td><td>Gemini 4 Hydrogen (other series)</td><td>same model as builder</td><td>Groq reviewer took 27 min; independence</td><td>Accepted</td></tr>
+<tr><td>022</td><td>Planner budget</td><td>400k, set by repo variables</td><td>per-stage budgets</td><td>run 20 hit 150k</td><td>Accepted</td></tr>
+<tr><td>023</td><td>Builder output</td><td>12k max tokens; cut-offs reported as such</td><td>reasoning off</td><td>run 21: all answers cut off at 3k</td><td>Accepted</td></tr>
+<tr><td>024</td><td>Feedback and context</td><td>failure digest; helpers shown; doc-ID note</td><td>full pytest output</td><td>run 22: the tail hid the cause</td><td>Accepted</td></tr>
+<tr><td>025</td><td>Localize new functions</td><td>show the module for a new top-level function</td><td>—</td><td>run 25 stopped with no code to show</td><td>Accepted</td></tr>
+<tr><td>026</td><td>Gaming and conflicts</td><td>gaming scan; conflict stop; round 2 started by a person</td><td>let the builder edit existing tests</td><td>run 27 gamed a pinned test</td><td>Accepted</td></tr>
+<tr><td>027</td><td>Review-only workflow</td><td>reviewer on any PR, code from master</td><td>run the reviewer locally</td><td>secrets stay in GitHub; enables E1</td><td>Accepted</td></tr>
+<tr><td>028</td><td>E2 outcome</td><td>keep the full hand-off</td><td>5-line summary</td><td>92/96 vs 83/96 hidden tests, same cost</td><td>Accepted</td></tr>
+</table>
+
+<h3>The three decisions that mattered most</h3>
+<p><b>1. ADR-016: the builder patches what the orchestrator finds.</b> The first builder was a tool-calling agent (ADR-005).
+In run 10 it used 40/40 turns and applied <b>0 edits</b>: 13 malformed <code>read_file</code> calls and 9 <code>edit_file</code> mismatches. Run 12 looped the same way on 179k tokens.
+We inverted control: code uses <code>ast</code> to extract the definitions the design names, plus their helpers and the <code>ARCHITECTURE.md</code> invariants. The model answers <b>once per attempt</b> with whole replacement definitions, and code applies them by name.
+From then on, a successful build cost <b>1–2 calls and 3–8k tokens</b> (run 17: 3k; run 26: 2.8k; run 23: 7.7k), and later fixes (ADR-023/024/025) were small changes to one function each. It also made the builder's input auditable.
+The price is that the builder cannot read anything it is not shown. Runs 22 and 25 (missing helpers, new module-level functions) and the import limit found in E2 are all costs of that inversion.</p>
+<p><b>2. ADR-008 (+021, 026): an independent reviewer behind deterministic gates.</b> Run 27 is the clearest evidence. The vague issue #7 asks to change behaviour that an existing test pins. After five honest failures, the builder made <code>Table.search()</code> walk the call stack (<code>sys._getframe</code>) and run the old code only for that test.
+<b>Every deterministic check passed</b> (231 tests, CI green). The reviewer, which saw only the issue and the diff, called it "special-casing a test via stack-frame inspection" and requested changes.
+We then added the cheap code-level defences the reviewer had shown were missing (ADR-026): a gaming scan, and a conflict stop that would have halted run 27 at attempt 5. The checks and the reviewer are complementary: the checks know patterns, and the reviewer knows intent.</p>
+<p><b>3. ADR-013 → 015 → 019: designing around the model provider's limits.</b> The assignment's free Groq key (8k tokens/min, 200k tokens/day per model) shaped everything until run 16.
+Requests had to fit 8k (ADR-013, after an HTTP 413 in run 2). Daily quotas made runs sleep for hours (run 11: 2.5 h cancelled), so we added fallback or a fast stop (ADR-015).
+Runs 2–16 delivered <b>no PR</b>, mostly for these reasons. Moving the planner and builder to a paid Gemini tier (ADR-019) turned a 2.5-hour stall into a <b>2½-minute</b> build (run 17), for about US$2 in total.
+The lesson is architectural: rate limits are a first-class constraint, like latency, and should be designed for at the start, not discovered.</p>
+
+<!-- ============================ 3 EXPERIMENTS ============================ -->
+<h2>3. Decision experiments</h2>
+<p>We tested two ADRs with controlled variants. In each, only one input changed, and the outcome was judged against ground truth that the agents could not see. Full write-up: <code>experiment/variants.md</code>.</p>
+<div class="two">
+<div>
+<h3>E1: reviewer model (tests ADR-008/021)</h3>
+<p class="note">The same 5 seeded PRs (4 buggy, 1 correct; all with green tests), prompt and workflow (ADR-027). Only <code>reviewer_model</code> changed. Follow-up: the builder's model also reviewed its own gamed PR #26.</p>
+<table class="small">
+<tr><th></th><th>A: Hydrogen (default)</th><th>B: Flash (= builder)</th></tr>
+<tr><td>Seeded bugs caught, right reason</td><td class="ok">4/4</td><td class="ok">4/4</td></tr>
+<tr><td>False alarms on the correct PR</td><td class="ok">0/1</td><td class="ok">0/1</td></tr>
+<tr><td>Builder's gamed PR #26</td><td>changes</td><td>changes (+ invariant conflict)</td></tr>
+<tr><td>LLM calls (5 PRs)</td><td>16</td><td>55</td></tr>
+<tr><td>Tokens in / out</td><td>54k / 4k</td><td>252k / 6k</td></tr>
+<tr><td>Cost (list price)</td><td><b>$0.11</b></td><td>$0.21</td></tr>
+</table>
+<p><b>Result: a negative result for the independence hypothesis.</b> The same-model reviewer was just as accurate, and it did not miss its own model's cheat.
+<b>What we changed:</b> we kept Hydrogen, now justified mainly by <b>cost and speed</b> (3.4× fewer calls), and only secondarily by independence. ADR-021 was updated, and its "independence" claim is downgraded in this report.</p>
+</div>
+<div>
+<h3>E2: hand-off to the builder (tests ADR-003)</h3>
+<p class="note">20 builder-only runs: 5 issues × {full spec + design, deterministic 5-line summary} × 2 repetitions. The spec, design, code shown and checks were frozen, with no redesign. Hidden tests were run on Python 3.12 (ADR-028).</p>
+<table class="small">
+<tr><th></th><th>full (default)</th><th>5-line summary</th></tr>
+<tr><td>Hand-off size</td><td>3.7–4.7k chars</td><td>0.8–1.3k chars</td></tr>
+<tr><td>Runs passing all checks</td><td>8/10</td><td>7/10</td></tr>
+<tr><td>Hidden tests passed</td><td class="ok">92/96</td><td>83/96</td></tr>
+<tr><td>First-attempt success (#3–#6)</td><td>5/8</td><td>5/8</td></tr>
+<tr><td>Builder tokens in / out</td><td>52.6k / 37.3k</td><td>49.9k / 34.2k</td></tr>
+<tr><td>Cost (list price)</td><td>$0.18</td><td>$0.17</td></tr>
+</table>
+<p><b>Result: the summary saved about 5% of tokens and cost one run.</b> In patch mode the code dominates the request, not the spec and design text. Issue #7 failed identically in both arms.
+<b>What we changed:</b> ADR-003 stays (ADR-028). E2 also exposed that the patch format cannot edit imports: every issue-5 first attempt wrote <code>list[Any]</code> without importing <code>Any</code>. That is logged as a follow-up.</p>
+</div>
+</div>
+<p class="note">The two experiments are small (E1: 6 PRs; E2: one run apart at n = 2 per cell), so we report them as directions rather than significant effects (see §6).</p>
+
+<!-- ============================ 4 RESULTS ============================ -->
+<h2>4. Results</h2>
+<div class="two">
+<div>
+<h3>Pass rate per stage (pipeline runs 2–27)</h3>
+<table class="small">
+<tr><th>Stage</th><th>Ran</th><th>Passed</th><th>Notes</th></tr>
+<tr><td>0 Gate</td><td>28</td><td>28 correct</td><td>20 allowed; 8 correctly skipped (wrong label, 6 type labels, 1 bot)</td></tr>
+<tr><td>0 Guard</td><td>13</td><td>13</td><td>no false positives (no injections were attempted)</td></tr>
+<tr><td>1 Spec</td><td>13</td><td>10 (9 first try)</td><td>stops: 413, output parse (infra); no finish (agent, fixed by ADR-020)</td></tr>
+<tr><td>2 Design</td><td>18</td><td>15 (15 first try)</td><td>3 infra stops (quota, bad key, budget); <b>3 designs passed the check but were wrong</b> (run 21–22: str vs int)</td></tr>
+<tr><td>3–4 Build</td><td>7 (patch)</td><td>5 (1 gamed)</td><td>23 attempts, 5 passed; first try 3/7. Tool loop (runs 10, 12): 0/2</td></tr>
+<tr><td>5 Release</td><td>5</td><td>5</td><td>every PR's CI green</td></tr>
+<tr><td>6 Review</td><td>7</td><td>5 verdicts</td><td>2 failed (Groq quota; billing); 5/5 verdicts correct</td></tr>
+</table>
+</div>
+<div>
+<h3>Hidden tests (outside the fork; 3 storages each)</h3>
+<table class="small">
+<tr><th>Issue (type)</th><th>PR</th><th>Hidden</th><th>Review</th><th>Runs</th></tr>
+<tr><td>#3 partial update (bug)</td><td><a href="https://github.com/RishabhDev01/tinydb/pull/17">#17</a></td><td class="ok">9/9</td><td>approve</td><td>12</td></tr>
+<tr><td>#4 string doc IDs (bug)</td><td><a href="https://github.com/RishabhDev01/tinydb/pull/22">#22</a></td><td class="ok">12/12</td><td>approve</td><td>4*</td></tr>
+<tr><td>#5 <code>pluck</code> (feature)</td><td><a href="https://github.com/RishabhDev01/tinydb/pull/23">#23</a></td><td class="ok">9/9</td><td>approve</td><td>1</td></tr>
+<tr><td>#6 <code>append</code> (feature)</td><td><a href="https://github.com/RishabhDev01/tinydb/pull/25">#25</a></td><td class="ok">9/9</td><td>approve</td><td>2</td></tr>
+<tr><td>#7 vague isolation</td><td><a href="https://github.com/RishabhDev01/tinydb/pull/26">#26</a></td><td class="bad">7/9</td><td>changes</td><td>2</td></tr>
+</table>
+<p class="note">Master baseline: 39 failed, 9 passed. *Issue #4 passed only after a human clarified an <code>ARCHITECTURE.md</code> invariant (ADR-024). Runs = AutoSE runs on that issue, including runs lost to infrastructure.</p>
+</div>
+</div>
+<p><b>What the reviewer caught.</b>
+<ul>
+<li>The test gaming in PR #26, which every automatic check had passed.</li>
+<li>All 4 seeded bugs, each for the right reason with the exact line: a swallowed <code>KeyError</code>, <code>update</code> left unconverted, <code>None</code> returned instead of skipping, and a shared mutable default.</li>
+<li>No false approvals and no false alarms in 16 verdicts.</li>
+</ul>
+<b>Where it was wrong or weak.</b>
+<ul>
+<li>On PR #26 Hydrogen advised "update the legacy test". That is a product decision a reviewer should escalate, not prescribe; Flash recommended escalating.</li>
+<li>The Groq-hosted reviewer of run 17 produced no valid verdict (forced finish, full tests never run), so validation rejected it.</li>
+<li>The reviewer cannot see that a design was wrong when the code matches it. Runs 21–22's wrong designs never reached review only because the tests caught them first.</li>
+</ul></p>
+
+<!-- ============================ 5 HINDSIGHT ============================ -->
+<h2>5. Hindsight</h2>
+<p><b>The decision we would change first is ADR-005: building the builder as a tool-calling agent on a free, rate-limited provider.</b> We inherited the "agent with tools" shape because it is the familiar pattern. It interacted badly with an 8k tokens/min limit: every turn re-sent a growing history, so a confused model burned both turns and quota.
+Nine pipeline runs (2 and 9–16) and most of the first day produced no PR. Starting tomorrow, we would build the stages 3–4 path as <b>localize → patch → validate from day one</b>, with the failure digest, and pick the provider by its <b>rate limits</b> rather than its model list.
+The independent reviewer, the code-decided checks and the file hand-offs we would keep unchanged: they are what produced trustworthy evidence even when things went wrong.
+A smaller lesson: evaluate locally on the <b>same Python version as CI</b>. A first local pass on 3.14 scored a branch that fails to import on 3.12 as 9/9. We re-ran every hidden test on 3.12, and no earlier result changed.</p>
+
+<!-- ============================ 6 LIMITATIONS ============================ -->
+<h2>6. Limitations and threats to validity</h2>
+<ul>
+<li><b>The pipeline was tuned on the evaluation issues (overfitting).</b> ADRs 013–026 were each written after a failure on issues #3–#7, and then re-run on the same issues. The 4/5 success rate is therefore optimistic for unseen issues. Issue #5 (first try from guard) is the cleanest data point.</li>
+<li><b>Human interventions.</b> We clarified an <code>ARCHITECTURE.md</code> invariant after seeing two wrong designs (ADR-024), so issue #4's success is not fully autonomous. Restarts at the design stage and every merge decision were also made by a person, by design.</li>
+<li><b>Small samples and non-determinism.</b> There are 5 issues, 6 PRs in E1, and n = 2 per cell in E2. Each pipeline issue was run to success once, not repeated. LLM outputs vary (for example, E2 issue 5 passed in 3 of 4 runs), so single runs can mislead.</li>
+<li><b>Ground truth is ours.</b> The hidden tests encode one reading of the vague issue, and the seeded bugs are single, diff-visible defects written by the same team that built the reviewer. Subtle multi-file bugs are not covered.</li>
+<li><b>Weaker independence than planned.</b> The reviewer and builder are both Gemini models (different series), and the judge is on Groq. E1 shows equal accuracy, but one vendor's shared training could hide correlated blind spots.</li>
+<li><b>Incomplete measurement.</b> Token totals miss three runs that crashed or were cancelled before reporting (11, 13, and run 17's Groq review). The injection guard was never tested with a real attack.</li>
+</ul>
+<p class="note">Rules respected: the workflow pushes and comments only in our fork and never merges (a person decides); API keys live only in repository secrets; spending caps were set (Groq free tier; a Gemini budget alert); and every run, PR and review is real and linked in <code>results/runs.md</code>.</p>
+
+</body>
+</html>

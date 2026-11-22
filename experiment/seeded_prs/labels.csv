@@ -1,0 +1,6 @@
+seeded_id,pr,issue,diff_file,label,seeded_defect
+S1,29,3,S1-s1-update-skip-missing.diff,buggy,swallows KeyError/TypeError in update; partial update kept and error hidden
+S2,30,4,S2-s2-remove-string-ids.diff,buggy,converts string doc_ids in remove only; update and get unchanged
+S3,31,5,S3-s3-pluck.diff,buggy,doc.get(field) returns None for missing fields instead of skipping
+S4,32,6,S4-s4-append-operation.diff,buggy,mutable default list shared by every document missing the field
+S5,33,4,S5-s5-string-doc-ids.diff,correct,none

@@ -1,0 +1,45 @@
+diff --git a/tests/test_append_operation.py b/tests/test_append_operation.py
+new file mode 100644
+index 0000000..d8646ec
+--- /dev/null
++++ b/tests/test_append_operation.py
+@@ -0,0 +1,18 @@
++from tinydb import TinyDB, where
++from tinydb.operations import append
++from tinydb.storages import MemoryStorage
++
++
++def test_append_to_existing_list():
++    db = TinyDB(storage=MemoryStorage)
++    db.insert({'id': 7, 'tags': ['a']})
++    db.update(append('tags', 'urgent'), where('id') == 7)
++    assert db.get(where('id') == 7)['tags'] == ['a', 'urgent']
++
++
++def test_append_appends_in_order():
++    db = TinyDB(storage=MemoryStorage)
++    db.insert({'id': 1, 'tags': []})
++    db.update(append('tags', 'x'), where('id') == 1)
++    db.update(append('tags', 'y'), where('id') == 1)
++    assert db.get(where('id') == 1)['tags'] == ['x', 'y']
+diff --git a/tinydb/operations.py b/tinydb/operations.py
+index 3f6c6ab..2922d3e 100644
+--- a/tinydb/operations.py
++++ b/tinydb/operations.py
+@@ -73,3 +73,16 @@ def decrement(field: str) -> Callable[[MutableMapping], None]:
+         doc[field] -= 1
+ 
+     return transform
++
++
++def append(field: str, val: Any,
++           default: list = []) -> Callable[[MutableMapping], None]:
++    """
++    Append ``val`` to the list in a given field.
++
++    If the document does not have the field yet, a new list is started.
++    """
++    def transform(doc: MutableMapping):
++        doc.setdefault(field, default).append(val)
++
++    return transform

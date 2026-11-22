@@ -9,53 +9,61 @@ Two repositories are involved:
 
 ```mermaid
 flowchart LR
-  subgraph GH[GitHub]
-    ISSUE[Issue / comment<br/>label 'autose' or '/autose']
+  subgraph GH[GitHub: fork RishabhDev01/tinydb]
+    ISSUE[Issue: label 'autose',<br/>'/autose' comment, or<br/>workflow_dispatch]
     PR[Pull request]
     CI[CI workflow<br/>pytest]
-    ART[(Actions artifacts<br/>.autose/issue-N/*)]
+    BR[(Branch autose/issue-N<br/>.autose/issue-N/*)]
   end
 
-  subgraph JOB1["Job: build  (contents:write, pull-requests:write)"]
-    GATE[Gate<br/>author_association check]
+  subgraph JOB0["Job: gate (read-only)"]
+    GATE[Gate: trusted user,<br/>not a bot, valid command]
+  end
+
+  subgraph JOB1["Job: build (contents:write, pull-requests:write)"]
     ORCH[Orchestrator<br/>Python state machine<br/>NO LLM]
-    PLAN[Planner agent<br/>stages 1-2<br/>model: PLANNER_MODEL]
-    JUDGE[LLM judge<br/>testability check<br/>model: JUDGE_MODEL]
-    BUILD[Builder agent<br/>stages 3-4<br/>model: BUILDER_MODEL]
-    REL[Release script<br/>stage 5, NO LLM<br/>git push + gh pr create]
-    CHK[Deterministic checks<br/>regex, file-exists,<br/>compileall, pytest]
+    PG[Prompt guard<br/>llama-prompt-guard-2-86m]
+    PLAN[Planner agent<br/>stages 1-2<br/>gemini-3.8-flash]
+    JUDGE[LLM judge<br/>testability<br/>qwen3.8-27b]
+    LOC[Localize<br/>ast: definitions,<br/>helpers, invariants]
+    BUILD[Builder<br/>stages 3-4, no tools<br/>gemini-3.8-flash]
+    CHK[Deterministic checks<br/>build, test-gaming scan,<br/>pytest + digest, AC map,<br/>conflict stop]
+    REL[Release script<br/>stage 5, NO LLM]
   end
 
-  subgraph JOB2["Job: review  (contents:read, pull-requests:read)"]
-    REV[Reviewer agent<br/>stage 6<br/>model: REVIEWER_MODEL<br/>qwen, a different family]
+  subgraph JOB2["Job: review (contents:read)"]
+    REV[Reviewer agent<br/>stage 6<br/>gemini-4-hydrogen]
   end
 
-  subgraph JOB3["Job: post  (pull-requests:write, no LLM)"]
-    POST[Post review.md<br/>as PR comment<br/>route verdict]
+  subgraph JOB3["Job: post (no LLM)"]
+    POST[Post review.md<br/>route verdict]
   end
-
-  GROQ[(Groq API<br/>OpenAI-compatible<br/>function calling)]
 
   ISSUE --> GATE --> ORCH
-  ORCH -->|issue text in &lt;untrusted&gt;| PLAN
+  ORCH --> PG
+  ORCH -->|issue text in untrusted tags| PLAN
   PLAN -->|spec.md| JUDGE
-  ORCH --> CHK
-  ORCH -->|spec.md + design.md| BUILD
-  BUILD -->|diff.patch, test_report.md| ORCH
+  ORCH -->|spec + design + code| LOC --> BUILD
+  BUILD -->|whole definitions + tests| CHK
+  CHK -->|failure digest| BUILD
   ORCH --> REL --> PR --> CI
-  ORCH --> ART
-  PR -->|issue + diff + repo @ PR head ONLY| REV
+  ORCH --> BR
+  PR -->|issue + diff + repo only| REV
   REV -->|review.md + verdict.json| POST
-  POST -->|changes requested, round < 2:<br/>re-dispatch with target stage| ORCH
-  POST -->|approve or rounds used| HUMAN[Human merges or closes]
-
-  PLAN & JUDGE & BUILD & REV -.-> GROQ
+  POST -->|changes: comment<br/>'/autose round 2 stage'| HUMAN[Human: merge, close,<br/>or start round 2]
+  POST -->|approve| HUMAN
 ```
+
+Two more workflows reuse these parts for evaluation, and both are started by hand only:
+- `autose-review.yml` runs the reviewer on any PR, with its code from master. It is used for the seeded PRs and E1 (ADR-027).
+- `autose-e2.yml` runs the builder alone with a frozen spec and design (E2, ADR-028).
+
+Providers: Gemini API, paid Tier 1, for the planner, builder and reviewer; Groq, free tier, for the judge, the prompt guard and the fallback models.
 
 ## Tools per agent
 
 The planner and reviewer run on one small in-house tool loop (`autose/agent.py`)
-over Groq's OpenAI-compatible chat API. Each gets an explicit allow-list of
+over OpenAI-compatible chat APIs (Gemini, Groq). Each gets an explicit allow-list of
 Python functions; anything not on the list does not exist for it. Since
 ADR-016, the builder has **no tools**. The orchestrator gives it the code it
 needs (`autose/patcher.py`), and it answers once per attempt.

@@ -39,7 +39,7 @@ sequenceDiagram
   PG-->>O: max score 0.001, pass
 
   Note over O,J: Stage 1: Requirements (06:19:43 to 06:20:12)
-  O->>P: untrusted issue #5 + spec-writer skill + read tools
+  O->>P: untrusted issue #35;5 + spec-writer skill + read tools
   P->>P: list_dir / read_file / grep (turn budget stated, ADR-020)
   P-->>O: spec.md: 5 ACs (all present, missing skipped, None kept, unknown field, custom table)
   O->>O: template check passes
@@ -65,15 +65,15 @@ sequenceDiagram
   O->>O: build passes. pytest: 233 passed. Every AC has a test. PASS (attempt 2)
 
   Note over O,CI: Stage 5: Release (no LLM, to 06:21:30)
-  O->>GH: push autose/issue-5, open PR #23 (body = pr.md)
+  O->>GH: push autose/issue-5, open PR #35;23 (body = pr.md)
   GH->>CI: pull_request event
   CI-->>O: run 44993321665 green. Stage 5 PASS
 
   Note over R,PJ: Stage 6: independent review (fresh runner, read-only token, 32 s)
-  O->>R: issue #5 text + diff (no .autose/, no spec, no design)
+  O->>R: issue #35;5 text + diff (no .autose/, no spec, no design)
   R->>R: read_file, run_tests (232 passed, 1 skipped)
   R-->>PJ: verdict: approve. 3 requirements met, 3 risks checked<br/>(empty table, None values, §4 invariants)
-  PJ->>GH: review comment on PR #23 + "Ready for a human decision"
+  PJ->>GH: review comment on PR #35;23 + "Ready for a human decision"
   GH-->>M: notification. Merge or close is the maintainer's call
 ```
 
@@ -136,10 +136,10 @@ sequenceDiagram
     B-->>O: attempt 6: search() walks the stack with sys._getframe and<br/>runs the OLD code only for that test
     O->>O: all 231 tests pass (gamed)
   end
-  O->>CI: PR #26, CI green
-  O->>R: issue #7 + diff
+  O->>CI: PR #35;26, CI green
+  O->>R: issue #35;7 + diff
   R-->>PJ: changes (route to implement). DEFECT: "special-casing a test via<br/>stack-frame inspection"
-  PJ->>M: review comment on PR #26
+  PJ->>M: review comment on PR #35;26
   Note over PJ,M: Run 28: the post job dispatched round 2 as github-actions[bot]<br/>and the gate rejected it (bot event)
 ```
 

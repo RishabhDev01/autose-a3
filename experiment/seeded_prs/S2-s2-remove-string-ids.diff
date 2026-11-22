@@ -1,0 +1,35 @@
+diff --git a/tests/test_string_doc_ids.py b/tests/test_string_doc_ids.py
+new file mode 100644
+index 0000000..7667e5c
+--- /dev/null
++++ b/tests/test_string_doc_ids.py
+@@ -0,0 +1,15 @@
++from tinydb import TinyDB
++from tinydb.storages import MemoryStorage
++
++
++def test_remove_with_string_id():
++    db = TinyDB(storage=MemoryStorage)
++    db.insert({'name': 'a'})
++    assert db.remove(doc_ids=['1']) == [1]
++    assert db.all() == []
++
++
++def test_remove_with_int_id_still_works():
++    db = TinyDB(storage=MemoryStorage)
++    db.insert({'name': 'a'})
++    assert db.remove(doc_ids=[1]) == [1]
+diff --git a/tinydb/table.py b/tinydb/table.py
+index 76470aa..24e6f9f 100644
+--- a/tinydb/table.py
++++ b/tinydb/table.py
+@@ -645,7 +645,8 @@ class Table:
+             # ``get(doc_ids=...)`` (see issue #591). The list of *actually*
+             # removed IDs is determined inside the updater so it reflects the
+             # table state at write time.
+-            requested_ids = list(doc_ids)
++            # IDs may arrive as strings (e.g. from a URL), so convert them.
++            requested_ids = [self.document_id_class(d) for d in doc_ids]
+             removed_ids: list[int] = []
+ 
+             def updater(table: dict):
