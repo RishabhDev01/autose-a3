@@ -54,7 +54,7 @@ flowchart LR
   REV -->|review.md + verdict.json| POST
   POST -->|changes: comment<br/>'/autose round 2 stage'| HUMAN[Human: merge, close,<br/>or start round 2]
   POST -->|approve| HUMAN
-  HUMAN -.->|"/autose round 2 design"<br/>or "... implement" (max 2 rounds)| ORCH
+  HUMAN -.->|round 2: restart at design<br/>or implement, max 2 rounds| ORCH
 ```
 
 Two more workflows reuse these parts for evaluation, and both are started by hand only:
