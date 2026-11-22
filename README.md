@@ -41,7 +41,7 @@ Two further workflows, also started by hand, were used for the evaluation:
 
 ## Layout
 ```
-report.pdf               the report (source: report/report.html)
+report.pdf               the report
 architecture/views/      component view, sequence view (real runs), stage map
 architecture/decisions/  ADR-001 ... ADR-029 (ADR-006 superseded, ADR-018 rejected; both kept)
 workflow/                copy of the fork's .github/workflows/, autose/ (agent code and prompts),
