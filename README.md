@@ -14,7 +14,7 @@
 | Planner (stages 1–2) | `gemini-3.8-flash` (fallback: `openai/gpt-oss-120b`, then `openai/gpt-oss-20b`) | Google Gemini API, paid Tier 1 (fallback: Groq free) |
 | Builder (stages 3–4) | `gemini-3.8-flash` (same fallback) | Google Gemini API, paid Tier 1 (fallback: Groq free) |
 | LLM judge (stage 1 check) | `qwen/qwen3.8-27b` | Groq free tier |
-| Reviewer (stage 6) | `qwen/qwen3.8-27b` | Groq free tier |
+| Reviewer (stage 6) | `gemini-4-hydrogen` (fallback: `qwen/qwen3.8-27b`) | Google Gemini API, paid Tier 1; a different series from the builder (ADR-021) |
 | Injection screen | `meta-llama/llama-prompt-guard-2-86m` | Groq free tier |
 
 Each model is set by a repository variable (see ADR-011, which supersedes ADR-006). Runs 1–14 used `openai/gpt-oss-120b`/`-20b` on Groq's free tier for the planner and builder. Later runs use Gemini (ADR-019). `state.json` in each run records the models used.
@@ -27,7 +27,7 @@ On an issue in the fork, a collaborator either:
 ## Layout
 ```
 architecture/views/      component view, sequence view, stage map
-architecture/decisions/  ADR-001 … ADR-020 (ADR-006 superseded)
+architecture/decisions/  ADR-001 … ADR-021 (ADR-006 superseded)
 workflow/                copy of the fork's .github/workflows + autose/ agent code
 experiment/              issues, hidden tests, seeded PRs, variants.md
 results/                 results.csv, runs.md

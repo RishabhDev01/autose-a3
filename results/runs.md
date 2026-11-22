@@ -27,6 +27,7 @@ Fork: https://github.com/RishabhDev01/tinydb (base `edff96a`)
 | [#14](https://github.com/RishabhDev01/tinydb/pull/14) | **Closed, not merged.** Scheduled auto-resume (ADR-018, rejected): the maintainer keeps every run human-triggered |
 | [#15](https://github.com/RishabhDev01/tinydb/pull/15) | Planner and builder on **Gemini 3.8 Flash (paid Tier 1)**; judge and reviewer stay on Groq qwen; fallback to Groq gpt-oss (ADR-019). Groq's Developer tier was closed to upgrades |
 | [#16](https://github.com/RishabhDev01/tinydb/pull/16) | Stated turn budget and forced `finish` in the last 3 turns; spec prompt says behaviour, not implementation (ADR-020), after run #16 below |
+| [#18](https://github.com/RishabhDev01/tinydb/pull/18) | Reviewer on **gemini-4-hydrogen** (a different series from the builder), fallback qwen (ADR-021), after run #17's slow Groq review |
 
 ## AutoSE runs
 
